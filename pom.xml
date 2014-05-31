@@ -1,0 +1,77 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>fi.xnet</groupId>
+  <artifactId>dhewm3</artifactId>
+  <version>1-SNAPSHOT</version>
+  <name>fi.xnet.dhewm3</name>
+  <description>dhewm3 in xnet repos</description>
+  <build>
+<!--    <sourceDirectory>src</sourceDirectory>-->
+    <plugins>
+<!--      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>-->
+<plugin>
+  <groupId>com.googlecode.cmake-maven-project</groupId>
+  <artifactId>cmake-maven-plugin</artifactId>
+  <version>2.8.12.2-b1</version>
+  <executions>
+    <execution>
+      <id>cmake-generate</id>
+      <goals>
+        <goal>generate</goal>
+      </goals>
+      <configuration>
+        <sourcePath>neo</sourcePath>
+        <targetPath>build</targetPath>
+        <generator>Unix Makefiles</generator>
+        <environmentVariables>
+          <key>value</key>
+        </environmentVariables>
+        <options>
+          <!--
+            Optional: One or more options found at http://www.cmake.org/cmake/help/v2.8.10/cmake.html#section_Options
+            For example:
+          -->
+          <option>-DBUILD_THIRDPARTY:bool=on</option> 
+        </options>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+    </plugins>
+<!--       <resources>
+          <resource>
+            <directory>${basedir}</directory>
+            <filtering>false</filtering>
+            <includes>
+              <include>plugin.yml</include>
+            </includes>
+          </resource>
+       </resources>-->
+  </build>
+  <repositories>
+<!--    <repository>
+            <id>repobo-rel</id>
+            <name>repo.bukkit.org Releases</name>
+            <url>http://repo.bukkit.org/content/repositories/releases/</url>
+    </repository>-->
+<!--        <repository>
+            <id>repobo-snap</id>
+            <name>repo.bukkit.org Snapshots</name>
+            <url>http://repo.bukkit.org/content/repositories/snapshots/</url>
+        </repository>-->
+  </repositories>
+  <dependencies>
+<!--    <dependency>
+      <groupId>org.bukkit</groupId>
+      <artifactId>bukkit</artifactId>
+      <version>1.4.5-R0.1-SNAPSHOT</version>
+    </dependency>-->
+  </dependencies>
+</project>
