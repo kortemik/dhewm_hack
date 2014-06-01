@@ -16,6 +16,7 @@
           <targetPath>build</targetPath>
           <generator>Unix Makefiles</generator>
 	  <projectDirectory>build</projectDirectory>
+	  <buildDirectory>build</buildDirectory>
 	</configuration>
 	<executions>
 	  <execution>
@@ -40,6 +41,42 @@
 	    </goals>
 	  </execution>
 	</executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <configuration>
+              <tasks>
+                <copy todir="snapshot" flatten="true">
+                  <fileset dir="build">
+                    <include name="base.so"/>
+                    <include name="d3xp.so"/>
+                    <include name="dhewm3"/>
+                  </fileset>
+		</copy>
+		<copy todir="snapshot/base" flatten="true">
+		  <fileset dir="base">
+		    <include name="default.cfg"/>
+		  </fileset>
+                </copy>
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <descriptors>
+	    <descriptor>assembly.xml</descriptor>
+          </descriptors>
+        </configuration>
       </plugin>
     </plugins>
   </build>
