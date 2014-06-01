@@ -1,0 +1,9 @@
+gcc-c++
+libjpeg-devel
+libvorbis-devel
+lopenal-devel
+openal-devel
+libsdl-devel
+sdl-devel
+libSDL-devel
+SDL-devel
