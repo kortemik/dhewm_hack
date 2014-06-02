@@ -49,14 +49,14 @@
             <phase>package</phase>
             <configuration>
               <tasks>
-                <copy todir="snapshot" flatten="true">
+                <copy todir="target/snapshot" flatten="true">
                   <fileset dir="target/built">
                     <include name="base.so"/>
                     <include name="d3xp.so"/>
                     <include name="dhewm3"/>
                   </fileset>
 		</copy>
-		<copy todir="snapshot/base" flatten="true">
+		<copy todir="target/snapshot/base" flatten="true">
 		  <fileset dir="base">
 		    <include name="default.cfg"/>
 		  </fileset>
