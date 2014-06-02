@@ -10,26 +10,25 @@
       <plugin>
 	<groupId>com.googlecode.cmake-maven-project</groupId>
 	<artifactId>cmake-maven-plugin</artifactId>
-	<!--	<version>2.8.12.2-b1-SNAPSHOT</version>-->
 	<version>2.8.11-b4</version>
 	<configuration>
           <sourcePath>neo</sourcePath>
-          <targetPath>build</targetPath>
+          <targetPath>target/built</targetPath>
           <generator>Unix Makefiles</generator>
-	  <projectDirectory>build</projectDirectory>
-	  <buildDirectory>build</buildDirectory>
+	  <projectDirectory>target/built</projectDirectory>
+	  <buildDirectory>target/built</buildDirectory>
 	</configuration>
 	<executions>
 	  <execution>
 	    <id>cmake-generate</id>
-	    <phase>build</phase>
+	    <phase>process-resources</phase>
 	    <goals>
               <goal>generate</goal>
 	    </goals>
 	  </execution>
 	  <execution>
 	    <id>cmake-compile</id>
-	    <phase>build</phase>
+	    <phase>compile</phase>
 	    <goals>
               <goal>compile</goal>
 	    </goals>
@@ -51,7 +50,7 @@
             <configuration>
               <tasks>
                 <copy todir="snapshot" flatten="true">
-                  <fileset dir="build">
+                  <fileset dir="target/built">
                     <include name="base.so"/>
                     <include name="d3xp.so"/>
                     <include name="dhewm3"/>
