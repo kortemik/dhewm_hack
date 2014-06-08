@@ -49,6 +49,9 @@ class idRenderWorldLocal;
 // parallel on a dual cpu machine
 const int SMP_FRAMES = 1;
 
+// maximum texture units
+const int MAX_PROG_TEXTURE_PARMS = 16;
+
 const int FALLOFF_TEXTURE_SIZE =	64;
 
 const float	DEFAULT_FOG_DISTANCE = 500.0f;
@@ -598,7 +601,6 @@ typedef struct {
 
 typedef struct {
 	int		current2DMap;
-	int		current3DMap;
 	int		currentCubeMap;
 	int		texEnv;
 	textureType_t	textureType;
@@ -635,7 +637,6 @@ typedef struct {
 	int		c_vboIndexes;
 	float	c_overDraw;
 
-	float	maxLightValue;	// for light scale
 	int		msec;			// total msec for backend run
 } backEndCounters_t;
 
@@ -655,13 +656,6 @@ typedef struct {
 	float				lightTextureMatrix[16];	// only if lightStage->texture.hasMatrix
 	float				lightColor[4];		// evaluation of current light's color stage
 
-	float				lightScale;			// Every light color calaculation will be multiplied by this,
-											// which will guarantee that the result is < tr.backEndRendererMaxLight
-											// A card with high dynamic range will have this set to 1.0
-	float				overBright;			// The amount that all light interactions must be multiplied by
-											// with post processing to get the desired total light level.
-											// A high dynamic range card will have this set to 1.0.
-
 	bool				currentRenderCopied;	// true if any material has already referenced _currentRender
 
 	// our OpenGL state deltas
@@ -674,10 +668,6 @@ typedef struct {
 const int MAX_GUI_SURFACES	= 1024;		// default size of the drawSurfs list for guis, will
 										// be automatically expanded as needed
 
-typedef enum {
-	BE_ARB2,
-	BE_BAD
-} backEndName_t;
 
 typedef struct {
 	int		x, y, width, height;	// these are in physical, OpenGL Y-at-bottom pixels
@@ -738,7 +728,6 @@ public:
 							~idRenderSystemLocal( void );
 
 	void					Clear( void );
-	void					SetBackEndRenderer();			// sets tr.backEndRenderer based on cvars
 	void					RenderViewToViewport( const renderView_t *renderView, idScreenRect *viewport );
 
 public:
@@ -757,14 +746,7 @@ public:
 
 	int						viewportOffset[2];	// for doing larger-than-window tiled renderings
 	int						tiledViewport[2];
-
-	// determines which back end to use, and if vertex programs are in use
-	backEndName_t			backEndRenderer;
-	bool					backEndRendererHasVertexPrograms;
-	float					backEndRendererMaxLight;	// 1.0 for standard, unlimited for floats
-														// determines how much overbrighting needs
-														// to be done post-process
-
+	
 	idVec4					ambientLightVector;	// used for "ambient bump mapping"
 
 	float					sortOffset;				// for determinist sorting of equal sort materials
@@ -790,6 +772,7 @@ public:
 	drawSurfsCommand_t		lockSurfacesCmd;	// use this when r_lockSurfaces = 1
 
 	viewEntity_t			identitySpace;		// can use if we don't know viewDef->worldSpace is valid
+
 	int						stencilIncr, stencilDecr;	// GL_INCR / INCR_WRAP_EXT, GL_DECR / GL_DECR_EXT
 
 	renderCrop_t			renderCrops[MAX_RENDER_CROPS];
@@ -799,6 +782,8 @@ public:
 	int						guiRecursionLevel;		// to prevent infinite overruns
 	class idGuiModel *		guiModel;
 	class idGuiModel *		demoGuiModel;
+
+	unsigned short			gammaTable[256];	// brightness / gamma modify this
 };
 
 extern backEndState_t		backEnd;
@@ -809,7 +794,9 @@ extern glconfig_t			glConfig;		// outside of TR since it shouldn't be cleared du
 //
 // cvars
 //
-extern idCVar r_mode;					// video mode number
+extern idCVar r_debugContext;			// enable various levels of context debug
+extern idCVar r_glDriver;				// "opengl32", etc
+extern idCVar r_vidMode;					// video mode number
 extern idCVar r_displayRefresh;			// optional display refresh rate option for vid mode
 extern idCVar r_fullscreen;				// 0 = windowed, 1 = full screen
 extern idCVar r_multiSamples;			// number of antialiasing samples
@@ -820,10 +807,10 @@ extern idCVar r_znear;					// near Z clip plane
 
 extern idCVar r_finish;					// force a call to glFinish() every frame
 extern idCVar r_frontBuffer;			// draw to front buffer for debugging
-extern idCVar r_swapInterval;			// changes the GL swap interval
+extern idCVar r_swapInterval;			// changes wglSwapIntarval
 extern idCVar r_offsetFactor;			// polygon offset parameter
 extern idCVar r_offsetUnits;			// polygon offset parameter
-extern idCVar r_singleTriangle;			// only draw a single triangle per primitive
+extern idCVar r_logFile;				// number of frames to emit GL logs
 extern idCVar r_clear;					// force screen clear every frame
 extern idCVar r_shadows;				// enable shadows
 extern idCVar r_subviewOnly;			// 1 = don't render main view, allowing subviews to be debugged
@@ -832,8 +819,6 @@ extern idCVar r_flareSize;				// scale the flare deforms from the material def
 
 extern idCVar r_gamma;					// changes gamma tables
 extern idCVar r_brightness;				// changes gamma tables
-
-extern idCVar r_renderer;				// arb2, etc
 
 extern idCVar r_checkBounds;			// compare all surface bounds with precalculated ones
 
@@ -857,7 +842,6 @@ extern idCVar r_usePreciseTriangleInteractions;	// 1 = do winding clipping to de
 extern idCVar r_useTurboShadow;			// 1 = use the infinite projection with W technique for dynamic shadows
 extern idCVar r_useExternalShadows;		// 1 = skip drawing caps when outside the light volume
 extern idCVar r_useOptimizedShadows;	// 1 = use the dmap generated static shadow volumes
-extern idCVar r_useShadowVertexProgram;	// 1 = do the shadow projection in the vertex program on capable cards
 extern idCVar r_useShadowProjectedCull;	// 1 = discard triangles outside light volume before shadowing
 extern idCVar r_useDeferredTangents;	// 1 = don't always calc tangents after deform
 extern idCVar r_useCachedDynamicModels;	// 1 = cache snapshots of dynamic models
@@ -866,9 +850,6 @@ extern idCVar r_useInfiniteFarZ;		// 1 = use the no-far-clip-plane trick
 extern idCVar r_useScissor;				// 1 = scissor clip as portals and lights are processed
 extern idCVar r_usePortals;				// 1 = use portals to perform area culling, otherwise draw everything
 extern idCVar r_useStateCaching;		// avoid redundant state changes in GL_*() calls
-extern idCVar r_useCombinerDisplayLists;// if 1, put all nvidia register combiner programming in display lists
-extern idCVar r_useVertexBuffers;		// if 0, don't use ARB_vertex_buffer_object for vertexes
-extern idCVar r_useIndexBuffers;		// if 0, don't use ARB_vertex_buffer_object for indexes
 extern idCVar r_useEntityCallbacks;		// if 0, issue the callback immediately at update time, rather than defering
 extern idCVar r_lightAllBackFaces;		// light all the back faces, even when they would be shadowed
 extern idCVar r_useDepthBoundsTest;     // use depth bounds test to reduce shadow fill
@@ -880,7 +861,6 @@ extern idCVar r_skipFrontEnd;			// bypasses all front end work, but 2D gui rende
 extern idCVar r_skipBackEnd;			// don't draw anything
 extern idCVar r_skipCopyTexture;		// do all rendering, but don't actually copyTexSubImage2D
 extern idCVar r_skipRender;				// skip 3D rendering, but pass 2D
-extern idCVar r_skipRenderContext;		// NULL the rendering context during backend 3D rendering
 extern idCVar r_skipTranslucent;		// skip the translucent interaction rendering
 extern idCVar r_skipAmbient;			// bypasses all non-interaction drawing
 extern idCVar r_skipNewAmbient;			// bypasses all vertex/fragment program ambients
@@ -892,7 +872,6 @@ extern idCVar r_skipParticles;			// 1 = don't render any particles
 extern idCVar r_skipUpdates;			// 1 = don't accept any entity or light updates, making everything static
 extern idCVar r_skipDeforms;			// leave all deform materials in their original state
 extern idCVar r_skipDynamicTextures;	// don't dynamically create textures
-extern idCVar r_skipLightScale;			// don't do any post-interaction light scaling, makes things dim on low-dynamic range cards
 extern idCVar r_skipBump;				// uses a flat surface instead of the bump map
 extern idCVar r_skipSpecular;			// use black for specular
 extern idCVar r_skipDiffuse;			// use black for diffuse
@@ -911,7 +890,6 @@ extern idCVar r_showVertexColor;		// draws all triangles with the solid vertex c
 extern idCVar r_showUpdates;			// report entity and light updates and ref counts
 extern idCVar r_showDemo;				// report reads and writes to the demo file
 extern idCVar r_showDynamic;			// report stats on dynamic surface generation
-extern idCVar r_showLightScale;			// report the scale factor applied to drawing for overbrights
 extern idCVar r_showIntensity;			// draw the screen colors based on intensity, red = 0, green = 128, blue = 255
 extern idCVar r_showDefs;				// report the number of modeDefs and lightDefs in view
 extern idCVar r_showTrace;				// show the intersection of an eye trace with the world
@@ -951,8 +929,6 @@ extern idCVar r_testGamma;				// draw a grid pattern to test gamma levels
 extern idCVar r_testStepGamma;			// draw a grid pattern to test gamma levels
 extern idCVar r_testGammaBias;			// draw a grid pattern to test gamma levels
 
-extern idCVar r_testARBProgram;			// experiment with vertex/fragment programs
-
 extern idCVar r_singleLight;			// suppress all but one light
 extern idCVar r_singleEntity;			// suppress all but one entity
 extern idCVar r_singleArea;				// only draw the portal area the view is actually in
@@ -973,6 +949,8 @@ extern idCVar r_debugPolygonFilled;
 extern idCVar r_materialOverride;		// override all materials
 
 extern idCVar r_debugRenderToTexture;
+
+extern idCVar stereoRender_deGhost;		// subtract from opposite eye to reduce ghosting
 
 /*
 ====================================================================
@@ -1026,11 +1004,6 @@ const int GLS_DEPTHFUNC_ALWAYS					= 0x00010000;
 const int GLS_DEPTHFUNC_EQUAL					= 0x00020000;
 const int GLS_DEPTHFUNC_LESS					= 0x0;
 
-const int GLS_ATEST_EQ_255						= 0x10000000;
-const int GLS_ATEST_LT_128						= 0x20000000;
-const int GLS_ATEST_GE_128						= 0x40000000;
-const int GLS_ATEST_BITS						= 0x70000000;
-
 const int GLS_DEFAULT							= GLS_DEPTHFUNC_ALWAYS;
 
 void R_Init( void );
@@ -1043,7 +1016,7 @@ void R_SetColorMappings( void );
 void R_ScreenShot_f( const idCmdArgs &args );
 void R_StencilShot( void );
 
-bool R_CheckExtension( const char *name );
+bool R_CheckExtension( char *name );
 
 
 /*
@@ -1054,14 +1027,48 @@ IMPLEMENTATION SPECIFIC FUNCTIONS
 ====================================================================
 */
 
-typedef struct {
+struct vidMode_t {
+	int width;
+	int height;
+	int displayHz;
+	
+	vidMode_t()	{
+		width = 640;
+		height = 480;
+		displayHz = 60;
+	}
+	
+	vidMode_t( int width, int height, int displayHz ) :
+		width( width ), height( height ), displayHz( displayHz ) {}
+	
+	bool operator==( const vidMode_t& a ) {
+		return a.width == width && a.height == height && a.displayHz == displayHz;
+	}
+};
+
+bool R_IsInitialized();
+
+// the number of displays can be found by itterating this until it returns false
+// displayNum is the 0 based value passed to EnumDisplayDevices(), you must add
+// 1 to this to get an r_fullScreen value.
+bool R_GetModeListForDisplay( const int displayNum, idList<vidMode_t>& modeList );
+
+struct glimpParms_t
+{
+	int			x;				// ignored in fullscreen
+	int			y;				// ignored in fullscreen
 	int			width;
 	int			height;
-	bool		fullScreen;
+	int			fullScreen;		// 0 = windowed, otherwise 1 based monitor number to go full screen on
+	// -1 = borderless window for spanning multiple displays
 	bool		stereo;
 	int			displayHz;
 	int			multiSamples;
-} glimpParms_t;
+};
+
+// R_GetModeListForDisplay is called before GLimp_Init(), but SDL needs SDL_Init() first.
+// So add PreInit for platforms that need it, others can just stub it.
+void		GLimp_PreInit();
 
 bool		GLimp_Init( glimpParms_t parms );
 // If the desired mode can't be set satisfactorily, false will be returned.
@@ -1080,7 +1087,7 @@ void		GLimp_SwapBuffers( void );
 // other system specific cvar checks that happen every frame.
 // This will not be called if 'r_drawBuffer GL_FRONT'
 
-void		GLimp_SetGamma( unsigned short red[256],
+void		GLimp_SetGamma( unsigned short red[256], 
 							unsigned short green[256],
 							unsigned short blue[256] );
 // Sets the hardware gamma ramps for gamma and brightness adjustment.
@@ -1088,24 +1095,13 @@ void		GLimp_SetGamma( unsigned short red[256],
 // of dacs with >8 bits of precision
 
 
-// Returns false if the system only has a single processor
-
-void		GLimp_ActivateContext( void );
-void		GLimp_DeactivateContext( void );
-// These are used for managing SMP handoffs of the OpenGL context
-// between threads, and as a performance tunining aid.  Setting
-// 'r_skipRenderContext 1' will call GLimp_DeactivateContext() before
-// the 3D rendering code, and GLimp_ActivateContext() afterwards.  On
-// most OpenGL implementations, this will result in all OpenGL calls
-// being immediate returns, which lets us guage how much time is
-// being spent inside OpenGL.
-
 const int GRAB_ENABLE		= (1 << 0);
 const int GRAB_REENABLE		= (1 << 1);
 const int GRAB_HIDECURSOR	= (1 << 2);
 const int GRAB_SETSTATE		= (1 << 3);
 
 void GLimp_GrabInput(int flags);
+
 /*
 ====================================================================
 
@@ -1169,7 +1165,6 @@ void R_LinkLightSurf( const drawSurf_t **link, const srfTriangles_t *tri, const 
 				   const idRenderLightLocal *light, const idMaterial *shader, const idScreenRect &scissor, bool viewInsideShadow );
 
 bool R_CreateAmbientCache( srfTriangles_t *tri, bool needsLighting );
-bool R_CreateLightingCache( const idRenderEntityLocal *ent, const idRenderLightLocal *light, srfTriangles_t *tri );
 void R_CreatePrivateShadowCache( srfTriangles_t *tri );
 void R_CreateVertexProgramShadowCache( srfTriangles_t *tri );
 

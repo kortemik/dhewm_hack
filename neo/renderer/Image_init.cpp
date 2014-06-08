@@ -57,7 +57,6 @@ idCVar idImageManager::image_useNormalCompression( "image_useNormalCompression",
 idCVar idImageManager::image_usePrecompressedTextures( "image_usePrecompressedTextures", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_BOOL, "use .dds files if present" );
 idCVar idImageManager::image_writePrecompressedTextures( "image_writePrecompressedTextures", "0", CVAR_RENDERER | CVAR_BOOL, "write .dds files if necessary" );
 idCVar idImageManager::image_writeNormalTGA( "image_writeNormalTGA", "0", CVAR_RENDERER | CVAR_BOOL, "write .tgas of the final normal maps for debugging" );
-idCVar idImageManager::image_writeNormalTGAPalletized( "image_writeNormalTGAPalletized", "0", CVAR_RENDERER | CVAR_BOOL, "write .tgas of the final palletized normal maps for debugging" );
 idCVar idImageManager::image_writeTGA( "image_writeTGA", "0", CVAR_RENDERER | CVAR_BOOL, "write .tgas of the non normal maps for debugging" );
 idCVar idImageManager::image_useOffLineCompression( "image_useOfflineCompression", "0", CVAR_RENDERER | CVAR_BOOL, "write a batch file for offline compression of DDS files" );
 idCVar idImageManager::image_cacheMinK( "image_cacheMinK", "200", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_INTEGER, "maximum KB of precompressed files to read at specification time" );
@@ -145,78 +144,6 @@ static void R_RampImage( idImage *image ) {
 	image->GenerateImage( (byte *)data, 256, 1,
 		TF_NEAREST, false, TR_CLAMP, TD_HIGH_QUALITY );
 }
-
-/*
-================
-R_SpecularTableImage
-
-Creates a ramp that matches our fudged specular calculation
-================
-*/
-static void R_SpecularTableImage( idImage *image ) {
-	int		x;
-	byte	data[256][4];
-
-	for (x=0 ; x<256 ; x++) {
-		float f = x/255.f;
-#if 0
-		f = pow(f, 16);
-#else
-		// this is the behavior of the hacked up fragment programs that
-		// can't really do a power function
-		f = (f-0.75)*4;
-		if ( f < 0 ) {
-			f = 0;
-		}
-		f = f * f;
-#endif
-		int		b = (int)(f * 255);
-
-		data[x][0] =
-		data[x][1] =
-		data[x][2] =
-		data[x][3] = b;
-	}
-
-	image->GenerateImage( (byte *)data, 256, 1,
-		TF_LINEAR, false, TR_CLAMP, TD_HIGH_QUALITY );
-}
-
-
-/*
-================
-R_Specular2DTableImage
-
-Create a 2D table that calculates ( reflection dot , specularity )
-================
-*/
-static void R_Specular2DTableImage( idImage *image ) {
-	int		x, y;
-	byte	data[256][256][4];
-
-	memset( data, 0, sizeof( data ) );
-		for ( x = 0 ; x < 256 ; x++ ) {
-			float f = x / 255.0f;
-		for ( y = 0; y < 256; y++ ) {
-
-			int b = (int)( pow( f, y ) * 255.0f );
-			if ( b == 0 ) {
-				// as soon as b equals zero all remaining values in this column are going to be zero
-				// we early out to avoid pow() underflows
-				break;
-			}
-
-			data[y][x][0] =
-			data[y][x][1] =
-			data[y][x][2] =
-			data[y][x][3] = b;
-		}
-	}
-
-	image->GenerateImage( (byte *)data, 256, 256, TF_LINEAR, false, TR_CLAMP, TD_HIGH_QUALITY );
-}
-
-
 
 /*
 ================
@@ -363,7 +290,7 @@ static void R_BorderClampImage( idImage *image ) {
 	image->GenerateImage( (byte *)data, BORDER_CLAMP_SIZE, BORDER_CLAMP_SIZE,
 		TF_LINEAR /* TF_NEAREST */, false, TR_CLAMP_TO_BORDER, TD_DEFAULT );
 
-	if ( !glConfig.isInitialized ) {
+	if ( !R_IsInitialized() ) {
 		// can't call qglTexParameterfv yet
 		return;
 	}
@@ -989,11 +916,8 @@ static const filterName_t textureFilters[] = {
 		case TT_2D:
 			texEnum = GL_TEXTURE_2D;
 			break;
-		case TT_3D:
-			texEnum = GL_TEXTURE_3D;
-			break;
 		case TT_CUBIC:
-			texEnum = GL_TEXTURE_CUBE_MAP_EXT;
+			texEnum = GL_TEXTURE_CUBE_MAP;
 			break;
 		}
 
@@ -1195,8 +1119,8 @@ void R_ListImages_f( const idCmdArgs &args ) {
 		image = globalImages->images[ i ];
 
 		if ( uncompressedOnly ) {
-			if ( ( image->internalFormat >= GL_COMPRESSED_RGB_S3TC_DXT1_EXT && image->internalFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT )
-				|| image->internalFormat == GL_COLOR_INDEX8_EXT ) {
+			if ( ( image->internalFormat >= GL_COMPRESSED_RGB_S3TC_DXT1_EXT && image->internalFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT ) ) {
+
 				continue;
 			}
 		}
@@ -1301,108 +1225,6 @@ void R_ListImages_f( const idCmdArgs &args ) {
 
 }
 
-/*
-==================
-SetNormalPalette
-
-Create a 256 color palette to be used by compressed normal maps
-==================
-*/
-void idImageManager::SetNormalPalette( void ) {
-	int		i, j;
-	idVec3	v;
-	float	t;
-	//byte temptable[768];
-	byte	*temptable = compressedPalette;
-	int		compressedToOriginal[16];
-
-	// make an ad-hoc separable compression mapping scheme
-	for ( i = 0 ; i < 8 ; i++ ) {
-		float	f, y;
-
-		f = ( i + 1 ) / 8.5;
-		y = idMath::Sqrt( 1.0 - f * f );
-		y = 1.0 - y;
-
-		compressedToOriginal[7-i] = 127 - (int)( y * 127 + 0.5 );
-		compressedToOriginal[8+i] = 128 + (int)( y * 127 + 0.5 );
-	}
-
-	for ( i = 0 ; i < 256 ; i++ ) {
-		if ( i <= compressedToOriginal[0] ) {
-			originalToCompressed[i] = 0;
-		} else if ( i >= compressedToOriginal[15] ) {
-			originalToCompressed[i] = 15;
-		} else {
-			for ( j = 0 ; j < 14 ; j++ ) {
-				if ( i <= compressedToOriginal[j+1] ) {
-					break;
-				}
-			}
-			if ( i - compressedToOriginal[j] < compressedToOriginal[j+1] - i ) {
-				originalToCompressed[i] = j;
-			} else {
-				originalToCompressed[i] = j + 1;
-			}
-		}
-	}
-
-#if 0
-	for ( i = 0; i < 16; i++ ) {
-		for ( j = 0 ; j < 16 ; j++ ) {
-
-			v[0] = ( i - 7.5 ) / 8;
-			v[1] = ( j - 7.5 ) / 8;
-
-			t = 1.0 - ( v[0]*v[0] + v[1]*v[1] );
-			if ( t < 0 ) {
-				t = 0;
-			}
-			v[2] = idMath::Sqrt( t );
-
-			temptable[(i*16+j)*3+0] = 128 + floor( 127 * v[0] + 0.5 );
-			temptable[(i*16+j)*3+1] = 128 + floor( 127 * v[1] );
-			temptable[(i*16+j)*3+2] = 128 + floor( 127 * v[2] );
-		}
-	}
-#else
-	for ( i = 0; i < 16; i++ ) {
-		for ( j = 0 ; j < 16 ; j++ ) {
-
-			v[0] = ( compressedToOriginal[i] - 127.5 ) / 128;
-			v[1] = ( compressedToOriginal[j] - 127.5 ) / 128;
-
-			t = 1.0 - ( v[0]*v[0] + v[1]*v[1] );
-			if ( t < 0 ) {
-				t = 0;
-			}
-			v[2] = idMath::Sqrt( t );
-
-			temptable[(i*16+j)*3+0] = (byte)(128 + floor( 127 * v[0] + 0.5 ));
-			temptable[(i*16+j)*3+1] = (byte)(128 + floor( 127 * v[1] ));
-			temptable[(i*16+j)*3+2] = (byte)(128 + floor( 127 * v[2] ));
-		}
-	}
-#endif
-
-	// color 255 will be the "nullnormal" color for no reflection
-	temptable[255*3+0] =
-	temptable[255*3+1] =
-	temptable[255*3+2] = 128;
-
-	if ( !glConfig.sharedTexturePaletteAvailable ) {
-		return;
-	}
-
-	qglColorTableEXT( GL_SHARED_TEXTURE_PALETTE_EXT,
-					   GL_RGB,
-					   256,
-					   GL_RGB,
-					   GL_UNSIGNED_BYTE,
-					   temptable );
-
-	qglEnable( GL_SHARED_TEXTURE_PALETTE_EXT );
-}
 
 /*
 ==============
@@ -1687,9 +1509,6 @@ ReloadAllImages
 void idImageManager::ReloadAllImages() {
 	idCmdArgs args;
 
-	// build the compressed normal map palette
-	SetNormalPalette();
-
 	args.TokenizeString( "reloadImages reload", false );
 	R_ReloadImages_f( args );
 }
@@ -1932,9 +1751,7 @@ void idImageManager::BindNull() {
 	tmu = &backEnd.glState.tmu[backEnd.glState.currenttmu];
 
 	if ( tmu->textureType == TT_CUBIC ) {
-		qglDisable( GL_TEXTURE_CUBE_MAP_EXT );
-	} else if ( tmu->textureType == TT_3D ) {
-		qglDisable( GL_TEXTURE_3D );
+		qglDisable( GL_TEXTURE_CUBE_MAP );
 	} else if ( tmu->textureType == TT_2D ) {
 		qglDisable( GL_TEXTURE_2D );
 	}
@@ -1966,14 +1783,11 @@ void idImageManager::Init() {
 	borderClampImage = ImageFromFunction( "_borderClamp", R_BorderClampImage );
 	flatNormalMap = ImageFromFunction( "_flat", R_FlatNormalImage );
 	ambientNormalMap = ImageFromFunction( "_ambient", R_AmbientNormalImage );
-	specularTableImage = ImageFromFunction( "_specularTable", R_SpecularTableImage );
-	specular2DTableImage = ImageFromFunction( "_specular2DTable", R_Specular2DTableImage );
 	rampImage = ImageFromFunction( "_ramp", R_RampImage );
 	alphaRampImage = ImageFromFunction( "_alphaRamp", R_RampImage );
 	alphaNotchImage = ImageFromFunction( "_alphaNotch", R_AlphaNotchImage );
 	fogImage = ImageFromFunction( "_fog", R_FogImage );
 	fogEnterImage = ImageFromFunction( "_fogEnter", R_FogEnterImage );
-	normalCubeMapImage = ImageFromFunction( "_normalCubeMap", makeNormalizeVectorCubeMap );
 	noFalloffImage = ImageFromFunction( "_noFalloff", R_CreateNoFalloffImage );
 	ImageFromFunction( "_quadratic", R_QuadraticImage );
 

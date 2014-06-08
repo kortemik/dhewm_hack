@@ -68,32 +68,28 @@ GLExtension_t GLimp_ExtensionPointer( const char *name );
 #include "renderer/qgl_proc.h"
 
 // multitexture
-extern	void ( APIENTRY * qglMultiTexCoord2fARB )( GLenum texture, GLfloat s, GLfloat t );
-extern	void ( APIENTRY * qglMultiTexCoord2fvARB )( GLenum texture, GLfloat *st );
 extern	void ( APIENTRY * qglActiveTextureARB )( GLenum texture );
 extern	void ( APIENTRY * qglClientActiveTextureARB )( GLenum texture );
 
+// GL_EXT_direct_state_access
+extern PFNGLBINDMULTITEXTUREEXTPROC			qglBindMultiTextureEXT;
+
 // ARB_vertex_buffer_object
-extern PFNGLBINDBUFFERARBPROC qglBindBufferARB;
-extern PFNGLDELETEBUFFERSARBPROC qglDeleteBuffersARB;
-extern PFNGLGENBUFFERSARBPROC qglGenBuffersARB;
-extern PFNGLISBUFFERARBPROC qglIsBufferARB;
-extern PFNGLBUFFERDATAARBPROC qglBufferDataARB;
-extern PFNGLBUFFERSUBDATAARBPROC qglBufferSubDataARB;
-extern PFNGLGETBUFFERSUBDATAARBPROC qglGetBufferSubDataARB;
-extern PFNGLMAPBUFFERARBPROC qglMapBufferARB;
-extern PFNGLUNMAPBUFFERARBPROC qglUnmapBufferARB;
-extern PFNGLGETBUFFERPARAMETERIVARBPROC qglGetBufferParameterivARB;
-extern PFNGLGETBUFFERPOINTERVARBPROC qglGetBufferPointervARB;
+extern PFNGLBINDBUFFERARBPROC				qglBindBufferARB;
+extern PFNGLBINDBUFFERRANGEPROC				qglBindBufferRange;
+extern PFNGLDELETEBUFFERSARBPROC			qglDeleteBuffersARB;
+extern PFNGLGENBUFFERSARBPROC				qglGenBuffersARB;
+extern PFNGLISBUFFERARBPROC					qglIsBufferARB;
+extern PFNGLBUFFERDATAARBPROC				qglBufferDataARB;
+extern PFNGLBUFFERSUBDATAARBPROC			qglBufferSubDataARB;
+extern PFNGLGETBUFFERSUBDATAARBPROC			qglGetBufferSubDataARB;
+extern PFNGLMAPBUFFERARBPROC				qglMapBufferARB;
+extern PFNGLUNMAPBUFFERARBPROC				qglUnmapBufferARB;
+extern PFNGLGETBUFFERPARAMETERIVARBPROC		qglGetBufferParameterivARB;
+extern PFNGLGETBUFFERPOINTERVARBPROC		qglGetBufferPointervARB;
 
-// 3D textures
-extern void ( APIENTRY *qglTexImage3D)(GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const GLvoid *);
-
-// shared texture palette
-extern	void ( APIENTRY *qglColorTableEXT)( int, int, int, int, int, const void * );
-
-// EXT_stencil_two_side
-extern	PFNGLACTIVESTENCILFACEEXTPROC	qglActiveStencilFaceEXT;
+// GL_ARB_map_buffer_range
+extern PFNGLMAPBUFFERRANGEPROC				qglMapBufferRange;
 
 // ARB_texture_compression
 extern	PFNGLCOMPRESSEDTEXIMAGE2DARBPROC	qglCompressedTexImage2DARB;
@@ -111,5 +107,58 @@ extern PFNGLPROGRAMLOCALPARAMETER4FVARBPROC	qglProgramLocalParameter4fvARB;
 
 // GL_EXT_depth_bounds_test
 extern PFNGLDEPTHBOUNDSEXTPROC              qglDepthBoundsEXT;
+
+// separate stencil
+extern PFNGLSTENCILOPSEPARATEPROC			qglStencilOpSeparate;
+
+// GLSL / OpenGL 2.0
+extern PFNGLCREATESHADERPROC				qglCreateShader;
+extern PFNGLDELETESHADERPROC				qglDeleteShader;
+extern PFNGLSHADERSOURCEPROC				qglShaderSource;
+extern PFNGLCOMPILESHADERPROC				qglCompileShader;
+extern PFNGLGETSHADERIVPROC					qglGetShaderiv;
+extern PFNGLGETSHADERINFOLOGPROC			qglGetShaderInfoLog;
+extern PFNGLCREATEPROGRAMPROC				qglCreateProgram;
+extern PFNGLDELETEPROGRAMPROC				qglDeleteProgram;
+extern PFNGLATTACHSHADERPROC				qglAttachShader;
+extern PFNGLDETACHSHADERPROC				qglDetachShader;
+extern PFNGLLINKPROGRAMPROC					qglLinkProgram;
+extern PFNGLUSEPROGRAMPROC					qglUseProgram;
+extern PFNGLGETPROGRAMIVPROC				qglGetProgramiv;
+extern PFNGLGETPROGRAMINFOLOGPROC			qglGetProgramInfoLog;
+extern PFNGLPROGRAMPARAMETERIPROC			qglProgramParameteri;
+extern PFNGLBINDATTRIBLOCATIONPROC			qglBindAttribLocation;
+extern PFNGLGETUNIFORMLOCATIONPROC			qglGetUniformLocation;
+extern PFNGLUNIFORM1IPROC					qglUniform1i;
+extern PFNGLUNIFORM4FVPROC					qglUniform4fv;
+
+// GL_ARB_uniform_buffer_object
+extern PFNGLGETUNIFORMBLOCKINDEXPROC		qglGetUniformBlockIndex;
+extern PFNGLUNIFORMBLOCKBINDINGPROC			qglUniformBlockBinding;
+
+// GL_ARB_sync
+extern PFNGLFENCESYNCPROC					qglFenceSync;
+extern PFNGLISSYNCPROC						qglIsSync;
+extern PFNGLCLIENTWAITSYNCPROC				qglClientWaitSync;
+extern PFNGLDELETESYNCPROC					qglDeleteSync;
+
+// GL_ARB_occlusion_query
+extern PFNGLGENQUERIESARBPROC				qglGenQueriesARB;
+extern PFNGLDELETEQUERIESARBPROC			qglDeleteQueriesARB;
+extern PFNGLISQUERYARBPROC					qglIsQueryARB;
+extern PFNGLBEGINQUERYARBPROC				qglBeginQueryARB;
+extern PFNGLENDQUERYARBPROC					qglEndQueryARB;
+extern PFNGLGETQUERYIVARBPROC				qglGetQueryivARB;
+extern PFNGLGETQUERYOBJECTIVARBPROC			qglGetQueryObjectivARB;
+extern PFNGLGETQUERYOBJECTUIVARBPROC		qglGetQueryObjectuivARB;
+
+// GL_ARB_timer_query / GL_EXT_timer_query
+extern PFNGLGETQUERYOBJECTUI64VEXTPROC		qglGetQueryObjectui64vEXT;
+
+// GL_ARB_debug_output
+extern PFNGLDEBUGMESSAGECONTROLARBPROC		qglDebugMessageControlARB;
+extern PFNGLDEBUGMESSAGEINSERTARBPROC		qglDebugMessageInsertARB;
+extern PFNGLDEBUGMESSAGECALLBACKARBPROC		qglDebugMessageCallbackARB;
+extern PFNGLGETDEBUGMESSAGELOGARBPROC		qglGetDebugMessageLogARB;
 
 #endif
