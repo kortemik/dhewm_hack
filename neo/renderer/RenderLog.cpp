@@ -60,7 +60,7 @@ const char * renderLogMainBlockLabels[] = {
 	ASSERT_ENUM_STRING( MRB_MAX,							13 )
 };
 
-extern u_int64_t Sys_Microseconds();
+unsigned int Sys_Milliseconds( void );
 /*
 ================================================================================================
 
@@ -126,7 +126,7 @@ void PC_BeginNamedEvent( const char *szName, ... ) {
 
 	pixEvent_t *ev = &pixEvents[numPixEvents++];
 	strncpy( ev->name, szName, sizeof( ev->name ) - 1 );
-	ev->cpuTime = Sys_Microseconds();
+	ev->cpuTime = Sys_Milliseconds() * 1000;
 #endif
 }
 
@@ -152,7 +152,7 @@ void PC_EndNamedEvent() {
 	}
 
 	pixEvent_t *ev = &pixEvents[numPixEvents-1];
-	ev->cpuTime = Sys_Microseconds() - ev->cpuTime;
+	ev->cpuTime = ( Sys_Milliseconds() * 1000 ) - ev->cpuTime;
 
 	GL_CheckErrors();
 	qglEndQueryARB( GL_TIME_ELAPSED_EXT );
@@ -265,7 +265,7 @@ void idRenderLog::StartFrame() {
 	logFile->Printf( "// %s", str );
 	logFile->Printf( "// %s\n\n", com_version.GetString() );
 
-	frameStartTime = Sys_Microseconds();
+	frameStartTime = Sys_Milliseconds() * 1000;
 	closeBlockTime = frameStartTime;
 	OpenBlock( "Frame" );
 }
@@ -376,7 +376,7 @@ idRenderLog::LogOpenBlock
 */
 void idRenderLog::LogOpenBlock( renderLogIndentLabel_t label, const char * fmt, va_list args ) {
 
-	u_int64_t now = Sys_Microseconds();
+	u_int64_t now = Sys_Milliseconds() * 1000;
 
 	if ( logFile != NULL ) {
 		if ( now - closeBlockTime >= 1000 ) {
@@ -403,7 +403,7 @@ idRenderLog::LogCloseBlock
 ========================
 */
 void idRenderLog::LogCloseBlock( renderLogIndentLabel_t label ) {
-	closeBlockTime = Sys_Microseconds();
+	closeBlockTime = Sys_Milliseconds() * 1000;
 
 	assert( logLevel > 0 );
 	logLevel--;

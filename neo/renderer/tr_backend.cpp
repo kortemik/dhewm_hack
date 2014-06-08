@@ -43,6 +43,8 @@ may touch, including the editor.
 void RB_SetDefaultGLState( void ) {
 	int		i;
 
+	RENDERLOG_PRINTF("--- R_SetDefaultGLState ---\n");
+
 	qglClearDepth( 1.0f );
 	qglColor4f (1,1,1,1);
 
@@ -70,9 +72,8 @@ void RB_SetDefaultGLState( void ) {
 	qglPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 	qglDepthMask( GL_TRUE );
 	qglDepthFunc( GL_ALWAYS );
-
+ 
 	qglCullFace( GL_FRONT_AND_BACK );
-	qglShadeModel( GL_SMOOTH );
 
 	if ( r_useScissor.GetBool() ) {
 		qglScissor( 0, 0, glConfig.vidWidth, glConfig.vidHeight );
@@ -89,20 +90,15 @@ void RB_SetDefaultGLState( void ) {
 
 		GL_TexEnv( GL_MODULATE );
 		qglDisable( GL_TEXTURE_2D );
-		if ( glConfig.texture3DAvailable ) {
-			qglDisable( GL_TEXTURE_3D );
-		}
-		if ( glConfig.cubeMapAvailable ) {
-			qglDisable( GL_TEXTURE_CUBE_MAP_EXT );
-		}
+		qglDisable( GL_TEXTURE_CUBE_MAP );
 	}
+
+	renderProgManager.Unbind();
+	renderProgManager.ZeroUniforms();
 }
 
 
-
-
 //=============================================================================
-
 
 
 /*
@@ -122,6 +118,7 @@ void GL_SelectTexture( int unit ) {
 
 	qglActiveTextureARB( GL_TEXTURE0_ARB + unit );
 	qglClientActiveTextureARB( GL_TEXTURE0_ARB + unit );
+	RENDERLOG_PRINTF("glActiveTextureARB( %i );\nglClientActiveTextureARB( %i );\n", unit, unit);
 
 	backEnd.glState.currenttmu = unit;
 }
@@ -350,32 +347,6 @@ void GL_State( int stateBits ) {
 		}
 	}
 
-	//
-	// alpha test
-	//
-	if ( diff & GLS_ATEST_BITS ) {
-		switch ( stateBits & GLS_ATEST_BITS ) {
-		case 0:
-			qglDisable( GL_ALPHA_TEST );
-			break;
-		case GLS_ATEST_EQ_255:
-			qglEnable( GL_ALPHA_TEST );
-			qglAlphaFunc( GL_EQUAL, 1 );
-			break;
-		case GLS_ATEST_LT_128:
-			qglEnable( GL_ALPHA_TEST );
-			qglAlphaFunc( GL_LESS, 0.5 );
-			break;
-		case GLS_ATEST_GE_128:
-			qglEnable( GL_ALPHA_TEST );
-			qglAlphaFunc( GL_GEQUAL, 0.5 );
-			break;
-		default:
-			assert( 0 );
-			break;
-		}
-	}
-
 	backEnd.glState.glStateBits = stateBits;
 }
 
@@ -534,6 +505,8 @@ const void	RB_SwapBuffers( const void *data ) {
 		qglFinish();
 	}
 
+	RENDERLOG_PRINTF("***************** RB_SwapBuffers *****************\n\n\n");
+
 	// don't flip if drawing to front buffer
 	if ( !r_frontBuffer.GetBool() ) {
 		GLimp_SwapBuffers();
@@ -555,6 +528,8 @@ const void	RB_CopyRender( const void *data ) {
 	if ( r_skipCopyTexture.GetBool() ) {
 		return;
 	}
+
+	RENDERLOG_PRINTF("***************** RB_CopyRender *****************\n");
 
 	if (cmd->image) {
 		cmd->image->CopyFramebuffer( cmd->x, cmd->y, cmd->imageWidth, cmd->imageHeight, false );
@@ -579,6 +554,8 @@ void RB_ExecuteBackEndCommands( const emptyCommand_t *cmds ) {
 	}
 
 	backEndStartTime = Sys_Milliseconds();
+
+	renderLog.StartFrame();
 
 	// needed for editor rendering
 	RB_SetDefaultGLState();
@@ -629,4 +606,5 @@ void RB_ExecuteBackEndCommands( const emptyCommand_t *cmds ) {
 		common->Printf( "3d: %i, 2d: %i, SetBuf: %i, SwpBuf: %i, CpyRenders: %i, CpyFrameBuf: %i\n", c_draw3d, c_draw2d, c_setBuffers, c_swapBuffers, c_copyRenders, backEnd.c_copyFrameBuffer );
 		backEnd.c_copyFrameBuffer = 0;
 	}
+	renderLog.EndFrame();
 }

@@ -42,6 +42,8 @@ typedef enum {
 
 typedef struct vertCache_s {
 	GLuint			vbo;
+   	GLenum    		target;
+   	GLenum       	usage;
 	void			*virtMem;			// only one of vbo / virtMem will be set
 	bool			indexBuffer;		// holds indexes instead of vertexes
 
@@ -59,10 +61,7 @@ class idVertexCache {
 public:
 	void			Init();
 	void			Shutdown();
-
-	// just for gfxinfo printing
-	bool			IsFast();
-
+	
 	// called when vertex programs are enabled or disabled, because
 	// the cached data is no longer valid
 	void			PurgeAll();
@@ -78,8 +77,8 @@ public:
 	// but it will be an int offset cast to a pointer of ARB_vertex_buffer_object
 	void *			Position( vertCache_t *buffer );
 
-	// if r_useIndexBuffers is enabled, but you need to draw something without
-	// an indexCache, this must be called to reset GL_ELEMENT_ARRAY_BUFFER_ARB
+	// if you need to draw something without an indexCache, this
+	// must be called to reset GL_ELEMENT_ARRAY_BUFFER_ARB
 	void			UnbindIndex();
 
 	// automatically freed at the end of the next frame
@@ -96,7 +95,7 @@ public:
 	// this block won't have to zero a buffer pointer when it is purged,
 	// but it must still wait for the frames to pass, in case the GPU
 	// is still referencing it
-	void			Free( vertCache_t *buffer );
+	void			Free( vertCache_t *buffer );	
 
 	// updates the counter for determining which temp space to use
 	// and which blocks can be purged
@@ -112,6 +111,8 @@ private:
 
 	static idCVar	r_showVertexCache;
 	static idCVar	r_vertexBufferMegs;
+	static idCVar   r_useArbBufferRange;
+	static idCVar   r_reuseVertexCacheSooner;
 
 	int				staticCountTotal;
 	int				staticAllocTotal;		// for end of frame purging
@@ -123,8 +124,6 @@ private:
 
 	int				currentFrame;			// for purgable block tracking
 	int				listNum;				// currentFrame % NUM_VERTEX_FRAMES, determines which tempBuffers to use
-
-	bool			virtualMemory;			// not fast stuff
 
 	bool			allocatingTempBuffer;	// force GL_STREAM_DRAW_ARB
 

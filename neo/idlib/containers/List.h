@@ -29,7 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __LIST_H__
 #define __LIST_H__
 
-#include "sys/platform.h"
+#include "idlib/containers/Sort.h"
+
 /*
 ===============================================================================
 
@@ -128,6 +129,7 @@ public:
 	bool			RemoveIndex( int index );							// remove the element at the given index
 	bool			Remove( const type & obj );							// remove the element
 	void			Sort( cmp_t *compare = ( cmp_t * )&idListSortCompare<type> );
+	void			SortWithTemplate( const idSort<type>& sort = idSort_QuickDefault<type>() );
 	void			SortSubSection( int startIndex, int endIndex, cmp_t *compare = ( cmp_t * )&idListSortCompare<type> );
 	void			Swap( idList<type> &other );						// swap the contents of the lists
 	void			DeleteContents( bool clear );						// delete the contents of the list
@@ -915,6 +917,24 @@ ID_INLINE void idList<type>::Sort( cmp_t *compare ) {
 
 	cmp_c *vCompare = (cmp_c *)compare;
 	qsort( ( void * )list, ( size_t )num, sizeof( type ), vCompare );
+}
+
+/*
+========================
+idList<type>::SortWithTemplate
+
+Performs a QuickSort on the list using the supplied sort algorithm.
+
+Note:	The data is merely moved around the list, so any pointers to data within the list may
+		no longer be valid.
+========================
+*/
+template<typename type>
+ID_INLINE void idList<type>::SortWithTemplate( const idSort<type>& sort ) {
+	if( list == NULL ) {
+		return;
+	}
+	sort.Sort( Ptr(), Num() );
 }
 
 /*

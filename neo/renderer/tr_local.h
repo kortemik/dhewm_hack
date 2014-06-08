@@ -450,11 +450,11 @@ typedef struct {
 	idImage *			diffuseImage;
 	idImage *			specularImage;
 
-	idVec4				diffuseColor;	// may have a light color baked into it, will be < tr.backEndRendererMaxLight
-	idVec4				specularColor;	// may have a light color baked into it, will be < tr.backEndRendererMaxLight
+	idVec4				diffuseColor;	// may have a light color baked into it
+	idVec4				specularColor;	// may have a light color baked into it
 	stageVertexColor_t	vertexColor;	// applies to both diffuse and specular
 
-	int					ambientLight;	// use tr.ambientNormalMap instead of normalization cube map
+	int					ambientLight;	// use tr.ambientNormalMap instead of normalization cube map 
 	// (not a bool just to avoid an uninitialized memory check of the pad region by valgrind)
 
 	// these are loaded into the vertex program
@@ -1224,15 +1224,15 @@ RENDER
 ============================================================
 */
 
-void RB_EnterWeaponDepthHack();
-void RB_EnterModelDepthHack( float depth );
-void RB_LeaveDepthHack();
+void RB_EnterWeaponDepthHack( const drawSurf_t *surf );
+void RB_EnterModelDepthHack( const drawSurf_t *surf );
+void RB_LeaveDepthHack( const drawSurf_t *surf );
 void RB_DrawElementsImmediate( const srfTriangles_t *tri );
 void RB_RenderTriangleSurface( const srfTriangles_t *tri );
 void RB_T_RenderTriangleSurface( const drawSurf_t *surf );
-void RB_RenderDrawSurfListWithFunction( drawSurf_t **drawSurfs, int numDrawSurfs,
+void RB_RenderDrawSurfListWithFunction( drawSurf_t **drawSurfs, int numDrawSurfs, 
 					  void (*triFunc_)( const drawSurf_t *) );
-void RB_RenderDrawSurfChainWithFunction( const drawSurf_t *drawSurfs,
+void RB_RenderDrawSurfChainWithFunction( const drawSurf_t *drawSurfs, 
 										void (*triFunc_)( const drawSurf_t *) );
 void RB_DrawShaderPasses( drawSurf_t **drawSurfs, int numDrawSurfs );
 void RB_LoadShaderTextureMatrix( const float *shaderRegisters, const textureStage_t *texture );
@@ -1243,8 +1243,6 @@ const shaderStage_t *RB_SetLightTexture( const idRenderLightLocal *light );
 
 void RB_DrawView( const void *data );
 
-void RB_DetermineLightScale( void );
-void RB_STD_LightScale( void );
 void RB_BeginDrawingView (void);
 
 /*
@@ -1259,8 +1257,6 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri );
 void RB_DrawShadowElementsWithCounters( const srfTriangles_t *tri, int numIndexes );
 void RB_STD_FillDepthBuffer( drawSurf_t **drawSurfs, int numDrawSurfs );
 void RB_BindVariableStageImage( const textureStage_t *texture, const float *shaderRegisters );
-void RB_BindStageTexture( const float *shaderRegisters, const textureStage_t *texture, const drawSurf_t *surf );
-void RB_FinishStageTexture( const textureStage_t *texture, const drawSurf_t *surf );
 void RB_StencilShadowPass( const drawSurf_t *drawSurfs );
 void RB_STD_DrawView( void );
 void RB_STD_FogAllLights( void );
@@ -1275,7 +1271,7 @@ DRAW_*
 */
 
 void	R_ARB2_Init( void );
-void	RB_ARB2_DrawInteractions( void );
+
 void	R_ReloadARBPrograms_f( const idCmdArgs &args );
 int		R_FindARBProgram( GLenum target, const char *program );
 
@@ -1285,11 +1281,9 @@ typedef enum {
 	VPROG_ENVIRONMENT,
 	VPROG_BUMPY_ENVIRONMENT,
 	VPROG_STENCIL_SHADOW,
-	VPROG_TEST,
 	FPROG_INTERACTION,
 	FPROG_ENVIRONMENT,
 	FPROG_BUMPY_ENVIRONMENT,
-	FPROG_TEST,
 	VPROG_AMBIENT,
 	FPROG_AMBIENT,
 	VPROG_GLASSWARP,
@@ -1382,11 +1376,7 @@ calling this function may modify "facing" based on culling
 ============================================================
 */
 
-srfTriangles_t *R_CreateVertexProgramTurboShadowVolume( const idRenderEntityLocal *ent,
-									 const srfTriangles_t *tri, const idRenderLightLocal *light,
-									 srfCullInfo_t &cullInfo );
-
-srfTriangles_t *R_CreateTurboShadowVolume( const idRenderEntityLocal *ent,
+srfTriangles_t *R_CreateTurboShadowVolume(const idRenderEntityLocal *ent,
 									 const srfTriangles_t *tri, const idRenderLightLocal *light,
 									 srfCullInfo_t &cullInfo );
 
@@ -1414,7 +1404,7 @@ typedef struct {
 	int		totalIndexes;
 } optimizedShadow_t;
 
-optimizedShadow_t SuperOptimizeOccluders( idVec4 *verts, glIndex_t *indexes, int numIndexes,
+optimizedShadow_t SuperOptimizeOccluders( idVec4 *verts, glIndex_t *indexes, int numIndexes, 
 										 idPlane projectionPlane, idVec3 projectionOrigin );
 
 void CleanupOptimizedShadowTris( srfTriangles_t *tri );

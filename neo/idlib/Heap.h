@@ -2,9 +2,9 @@
 ===========================================================================
 
 Doom 3 GPL Source Code
-Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company.
+Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
 
-This file is part of the Doom 3 GPL Source Code ("Doom 3 Source Code").
+This file is part of the Doom 3 GPL Source Code ("Doom 3 Source Code").  
 
 Doom 3 Source Code is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ If you have questions concerning this license or the applicable additional terms
 	This is a replacement for the compiler heap code (i.e. "C" malloc() and
 	free() calls). On average 2.5-3.0 times faster than MSVC malloc()/free().
 	Worst case performance is 1.65 times faster and best case > 70 times.
-
+ 
 ===============================================================================
 */
 
@@ -140,6 +140,77 @@ __inline void operator delete[]( void *p ) {
 #define		Mem_Free16( ptr )				Mem_Free16( ptr, __FILE__, __LINE__ )
 
 #endif /* ID_DEBUG_MEMORY */
+
+
+/*
+================================================
+idTempArray is an array that is automatically free'd when it goes out of scope.
+There is no "cast" operator because these are very unsafe.
+
+The template parameter MUST BE POD!
+
+Compile time asserting POD-ness of the template parameter is complicated due
+to our vector classes that need a default constructor but are otherwise
+considered POD.
+================================================
+*/
+template < class T >
+class idTempArray {
+public:
+	idTempArray( idTempArray<T> & other );
+	idTempArray( unsigned int num );
+
+	~idTempArray();
+
+	T & operator [](unsigned int i) { assert( i < num ); return buffer[i]; }
+	const T & operator [](unsigned int i) const { assert( i < num ); return buffer[i]; }
+
+	T * Ptr() { return buffer; }
+	const T* Ptr() const { return buffer; }
+
+	size_t Size() const { return num * sizeof(T); }
+	unsigned int Num() const { return num; }
+
+	void Zero() { memset( Ptr(), 0, Size() ); }
+
+private:
+	T *				buffer;		// Ensure this buffer comes first, so this == &this->buffer
+	unsigned int	num;
+};
+
+/*
+========================
+idTempArray::idTempArray
+========================
+*/
+template < class T >
+ID_INLINE idTempArray<T>::idTempArray( idTempArray<T> & other ) {
+	this->num = other.num;
+	this->buffer = other.buffer;
+	other.num = 0;
+	other.buffer = NULL;
+}
+
+/*
+========================
+idTempArray::idTempArray
+========================
+*/
+template < class T >
+ID_INLINE idTempArray<T>::idTempArray( unsigned int num ) {
+	this->num = num;
+	buffer = (T*)Mem_Alloc( num * sizeof(T) );
+}
+
+/*
+========================
+idTempArray::~idTempArray
+========================
+*/
+template < class T >
+ID_INLINE idTempArray<T>::~idTempArray() {
+	Mem_Free( buffer );
+}
 
 
 /*

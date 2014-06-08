@@ -432,6 +432,12 @@ void idRenderWorldLocal::UpdateLightDef( qhandle_t lightHandle, const renderLigh
 		light->archived = false;
 	}
 
+	// new for BFG edition: force noShadows on spectrum lights so teleport spawns
+	// don't cause such a slowdown.  Hell writing shouldn't be shadowed anyway...
+	if ( light->parms.shader && light->parms.shader->Spectrum() ) {
+		light->parms.noShadows = true;
+	}
+
 	if ( light->lightHasMoved ) {
 		light->parms.prelightModel = NULL;
 	}
@@ -679,7 +685,7 @@ void idRenderWorldLocal::RenderScene( const renderView_t *renderView ) {
 #ifndef	ID_DEDICATED
 	renderView_t	copy;
 
-	if ( !glConfig.isInitialized ) {
+	if ( !R_IsInitialized() ) {
 		return;
 	}
 
@@ -1442,7 +1448,7 @@ use it as an oportunity to size the interactionTable
 ===================
 */
 void idRenderWorldLocal::GenerateAllInteractions() {
-	if ( !glConfig.isInitialized ) {
+	if ( !R_IsInitialized() ) {
 		return;
 	}
 
