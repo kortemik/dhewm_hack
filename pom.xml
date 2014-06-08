@@ -61,6 +61,65 @@
 		    <include name="default.cfg"/>
 		  </fileset>
                 </copy>
+		<copy todir="target/snapshot/base/renderprogs" flatten="true">
+		  <fileset dir="base/renderprogs">
+		    <include name="blendLight.pixel"/>
+		    <include name="blendLight.vertex"/>
+		    <include name="bumpyenvironment.pixel"/>
+		    <include name="bumpyenvironment.vertex"/>
+		    <include name="color.pixel"/>
+		    <include name="colorProcess.pixel"/>
+		    <include name="colorProcess.vertex"/>
+		    <include name="color.vertex"/>
+		    <include name="depth.pixel"/>
+		    <include name="depth.vertex"/>
+		    <include name="environment.pixel"/>
+		    <include name="environment.vertex"/>
+		    <include name="fog.pixel"/>
+		    <include name="fog.vertex"/>
+		    <include name="fxaa.pixel"/>
+		    <include name="fxaa.vertex"/>
+		    <include name="global.inc"/>
+		    <include name="gui.pixel"/>
+		    <include name="gui.vertex"/>
+		    <include name="heathaze.pixel"/>
+		    <include name="heathaze.vertex"/>
+		    <include name="heatHazeWithMaskAndVertex.pixel"/>
+		    <include name="heatHazeWithMaskAndVertex.vertex"/>
+		    <include name="heatHazeWithMask.pixel"/>
+		    <include name="heatHazeWithMask.vertex"/>
+		    <include name="interactionAmbient.pixel"/>
+		    <include name="interactionAmbient.vertex"/>
+		    <include name="interaction.pixel"/>
+		    <include name="interaction.vertex"/>
+		    <include name="motionBlur.pixel"/>
+		    <include name="motionBlur.vertex"/>
+		    <include name="postprocess.pixel"/>
+		    <include name="postprocess.vertex"/>
+		    <include name="shadowDebug.pixel"/>
+		    <include name="shadowDebug.vertex"/>
+		    <include name="shadow.pixel"/>
+		    <include name="shadow.vertex"/>
+		    <include name="simpleshade.pixel"/>
+		    <include name="simpleshade.vertex"/>
+		    <include name="skybox.pixel"/>
+		    <include name="skybox.vertex"/>
+		    <include name="stereoDeGhost.pixel"/>
+		    <include name="stereoDeGhost.vertex"/>
+		    <include name="stereoInterlace.pixel"/>
+		    <include name="stereoInterlace.vertex"/>
+		    <include name="stereoWarp.pixel"/>
+		    <include name="stereoWarp.vertex"/>
+		    <include name="texture_color.pixel"/>
+		    <include name="texture_color_texgen.pixel"/>
+		    <include name="texture_color_texgen.vertex"/>
+		    <include name="texture_color.vertex"/>
+		    <include name="texture.pixel"/>
+		    <include name="texture.vertex"/>
+		    <include name="wobblesky.pixel"/>
+		    <include name="wobblesky.vertex"/>
+		  </fileset>
+                </copy>
               </tasks>
             </configuration>
             <goals>
