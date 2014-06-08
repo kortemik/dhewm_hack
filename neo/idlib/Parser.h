@@ -2,9 +2,9 @@
 ===========================================================================
 
 Doom 3 GPL Source Code
-Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company.
+Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
 
-This file is part of the Doom 3 GPL Source Code ("Doom 3 Source Code").
+This file is part of the Doom 3 GPL Source Code ("Doom 3 Source Code").  
 
 Doom 3 Source Code is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -119,6 +119,8 @@ public:
 	int				SkipBracedSection( bool parseFirstBrace = true );
 					// parse a braced section into a string
 	const char *	ParseBracedSection( idStr &out, int tabs = -1 );
+					// parse a braced section into a string
+	const char*		ParseBracedSection( idStr& out, int tabs, bool parseFirstBrace, char intro, char outro );
 					// parse a braced section into a string, maintaining indents and newlines
 	const char *	ParseBracedSectionExact( idStr &out, int tabs = -1 );
 					// parse the rest of the line
@@ -171,7 +173,8 @@ public:
 	void			Error( const char *str, ... ) const id_attribute((format(printf,2,3)));
 					// print a warning message
 	void			Warning( const char *str, ... ) const id_attribute((format(printf,2,3)));
-
+	// returns true if at the end of the file
+	bool			EndOfFile();
 					// add a global define that will be added to all opened sources
 	static int		AddGlobalDefine( const char *string );
 					// remove the given global define

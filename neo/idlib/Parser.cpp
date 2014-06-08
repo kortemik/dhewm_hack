@@ -2715,6 +2715,75 @@ const char *idParser::ParseBracedSection( idStr &out, int tabs ) {
 }
 
 /*
+========================
+idParser::ParseBracedSection
+
+The next token should be an open brace. Parses until a matching close brace is found. Internal 
+brace depths are properly skipped.
+========================
+*/
+const char* idParser::ParseBracedSection( idStr& out, int tabs, bool parseFirstBrace, char intro, char outro ) {
+	idToken token;
+	int i, depth;
+	bool doTabs;
+
+	char temp[ 2 ] = { 0, 0 };
+	*temp = intro;
+
+	out.Empty();
+	if ( parseFirstBrace ) {
+		if ( !ExpectTokenString( temp ) ) {
+			return out.c_str();
+		}
+		out = temp;
+	}
+	depth = 1;
+	doTabs = ( tabs >= 0 );
+	do {
+		if ( !ReadToken( &token ) ) {
+			Error( "missing closing brace" );
+			return out.c_str();
+		}
+
+		// if the token is on a new line
+		for ( i = 0; i < token.linesCrossed; i++ ) {
+			out += "\r\n";
+		}
+
+		if ( doTabs && token.linesCrossed ) {
+			i = tabs;
+			if ( token[ 0 ] == outro && i > 0 ) {
+				i--;
+			}
+			while( i-- > 0 ) {
+				out += "\t";
+			}
+		}
+		if ( token.type == TT_STRING ) {
+			out += "\"" + token + "\"";
+		} else if ( token.type == TT_LITERAL ) {
+			out += "\'" + token + "\'";
+		} else {
+			if ( token[ 0 ] == intro ) {
+				depth++;
+				if ( doTabs ) {
+					tabs++;
+				}
+			} else if ( token[ 0 ] == outro ) {
+				depth--;
+				if ( doTabs ) {
+					tabs--;
+				}
+			}
+			out += token;
+		}
+		out += " ";
+	} while( depth );
+
+	return out.c_str();
+}
+
+/*
 =================
 idParser::ParseRestOfLine
 
@@ -3250,3 +3319,16 @@ idParser::~idParser
 idParser::~idParser( void ) {
 	idParser::FreeSource( false );
 }
+
+/*
+========================
+idParser::EndOfFile
+========================
+*/
+bool idParser::EndOfFile() {
+	if ( scriptstack != NULL ) {
+		return (bool) scriptstack->EndOfFile();
+	}
+	return true;
+}
+

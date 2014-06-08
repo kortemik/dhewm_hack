@@ -39,6 +39,9 @@ class idScreenRect; // yay for include recursion
 #include "renderer/RenderSystem.h"
 #include "renderer/RenderWorld.h"
 
+#include "renderer/RenderLog.h"
+#include "renderer/RenderProgs.h"
+
 class idRenderWorldLocal;
 
 // everything that is needed by the backend needs

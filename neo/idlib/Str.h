@@ -39,6 +39,8 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
+#define ASSERT_ENUM_STRING( string, index )		( 1 / (int)!( string - index ) ) ? #string : ""
+
 // these library functions should not be used for cross platform compatibility
 #ifndef IDSTR_NO_REDIRECT
 #define strcmp			idStr::Cmp		// use_idStr_Cmp
@@ -224,6 +226,7 @@ public:
 	idStr				Left( int len ) const;							// return the leftmost 'len' characters
 	idStr				Right( int len ) const;							// return the rightmost 'len' characters
 	idStr				Mid( int start, int len ) const;				// return 'len' characters starting at 'start'
+	void				Format( const char *fmt, ... );					// perform a threadsafe sprintf to the string
 	void				StripLeading( const char c );					// strip char from front as many times as the char occurs
 	void				StripLeading( const char *string );				// strip string from front as many times as the string occurs
 	bool				StripLeadingOnce( const char *string );			// strip string from front just once if it occurs
