@@ -27,9 +27,10 @@ include(GNUInstallDirs OPTIONAL RESULT_VARIABLE GNUINSTALLDIRS)
 option(CORE			"Build the core" ON)
 option(BASE			"Build the base game code" ON)
 option(D3XP			"Build the d3xp game code" OFF)
-option(DEDICATED	"Build the dedicated server" ON)
-option(ONATIVE		"Optimize for the host CPU" OFF)
+option(DEDICATED		"Build the dedicated server" ON)
+option(ONATIVE			"Optimize for the host CPU" OFF)
 option(SDL2			"Use SDL2 instead of SDL1.2" ON)
+option(GLSL			"Use GLSL backend" ON)
 
 if(NOT CMAKE_SYSTEM_PROCESSOR)
 	message(FATAL_ERROR "No target CPU architecture set")
@@ -304,6 +305,13 @@ set(src_renderer
 	renderer/Model_prt.cpp
 	renderer/Model_sprite.cpp
 	renderer/RenderEntity.cpp
+
+##	if(GLSL)
+	        renderer/RenderLog.cpp
+        	renderer/RenderProgs.cpp
+		renderer/RenderProgs_GLSL.cpp
+##	endif()
+
 	renderer/RenderSystem.cpp
 	renderer/RenderSystem_init.cpp
 	renderer/RenderWorld.cpp
