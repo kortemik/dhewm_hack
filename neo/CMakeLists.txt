@@ -25,7 +25,7 @@ include(CheckFunctionExists)
 include(GNUInstallDirs OPTIONAL RESULT_VARIABLE GNUINSTALLDIRS)
 
 option(CORE			"Build the core" ON)
-option(BASE			"Build the base game code" OFF)
+option(BASE			"Build the base game code" ON)
 option(D3XP			"Build the d3xp game code" OFF)
 option(DEDICATED		"Build the dedicated server" OFF)
 option(ONATIVE			"Optimize for the host CPU" OFF)
