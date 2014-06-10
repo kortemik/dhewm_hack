@@ -34,17 +34,28 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/containers/Sort.h"
 
 #include "renderer/tr_local.h"
+
+
 #if defined(_WIN32)
 #include "sys/win32/win_local.h"
 #endif
 
+
 idCVar in_nograb("in_nograb", "0", CVAR_SYSTEM | CVAR_NOCHEAT, "prevents input grabbing");
+
 idCVar r_useOpenGL32( "r_useOpenGL32", "1", CVAR_INTEGER, "0 = OpenGL 2.0, 1 = OpenGL 3.2 compatibility profile, 2 = OpenGL 3.2 core profile", 0, 2 );
+idCVar r_waylandcompat("r_waylandcompat", "0", CVAR_SYSTEM | CVAR_NOCHEAT | CVAR_ARCHIVE, "wayland compatible framebuffer");
 
 static bool grabbed = false;
 
-SDL_Window *SDL_window = NULL;
-static SDL_GLContext *SDL_glContext = NULL;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+static SDL_Window *SDL_window = NULL;
+static SDL_GLContext SDL_glContext = NULL;
+#else
+static SDL_Surface *SDL_window = NULL;
+#define SDL_WINDOW_OPENGL SDL_OPENGL
+#define SDL_WINDOW_FULLSCREEN SDL_FULLSCREEN
+#endif
 
 /*
 ===================
@@ -78,96 +89,247 @@ bool GLimp_Init(glimpParms_t parms) {
 	if (parms.fullScreen)
 		flags |= SDL_WINDOW_FULLSCREEN;
 
-	SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
+	int colorbits = 24;
+	int depthbits = 24;
+	int stencilbits = 8;
 
-	SDL_GL_SetAttribute(SDL_GL_STEREO, parms.stereo ? 1 : 0);
+for (int i = 0; i < 16; i++) {
+  // 0 - default
+  // 1 - minus colorbits
+  // 2 - minus depthbits
+  // 3 - minus stencil
+  if ((i % 4) == 0 && i) {
+    // one pass, reduce
+    switch (i / 4) {
+    case 2 :
+      if (colorbits == 24)
+	colorbits = 16;
+      break;
+    case 1 :
+      if (depthbits == 24)
+	depthbits = 16;
+      else if (depthbits == 16)
+	depthbits = 8;
+    case 3 :
+      if (stencilbits == 24)
+	stencilbits = 16;
+      else if (stencilbits == 16)
+	stencilbits = 8;
+    }
+  }
+  int tcolorbits = colorbits;
+  int tdepthbits = depthbits;
+  int tstencilbits = stencilbits;
+  if ((i % 4) == 3) {
+    // reduce colorbits
+    if (tcolorbits == 24)
+      tcolorbits = 16;
+  }
+  if ((i % 4) == 2) {
+    // reduce depthbits
+    if (tdepthbits == 24)
+      tdepthbits = 16;
+    else if (tdepthbits == 16)
+      tdepthbits = 8;
+  }
+  if ((i % 4) == 1) {
+    // reduce stencilbits
+    if (tstencilbits == 24)
+      tstencilbits = 16;
+    else if (tstencilbits == 16)
+      tstencilbits = 8;
+    else
+      tstencilbits = 0;
+  }
+  int channelcolorbits = 4;
+  if (tcolorbits == 24)
+    channelcolorbits = 8;
 
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, parms.multiSamples ? 1 : 0);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, parms.multiSamples);
+  SDL_GL_SetAttribute (SDL_GL_RED_SIZE, channelcolorbits);
+  SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, channelcolorbits);
+  SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, channelcolorbits);
+  if (r_waylandcompat.GetBool())
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
+  else
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, channelcolorbits);
+  SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, tdepthbits);
+  SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, tstencilbits);
 
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+  SDL_GL_SetAttribute(SDL_GL_STEREO, parms.stereo ? 1 : 0);
 
-	if( r_useOpenGL32.GetInteger() > 0 ) {
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
-		if( r_useOpenGL32.GetInteger() > 1 ) {
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
-		} else {
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
-		}
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, parms.multiSamples ? 1 : 0);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, parms.multiSamples);
+
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+  if( r_useOpenGL32.GetInteger() > 0 ) {
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
+    if( r_useOpenGL32.GetInteger() > 1 ) {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    } else {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+    }
 			
-		if( r_debugContext.GetBool() ) {
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
-		}
-	}
+    if( r_debugContext.GetBool() ) {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+    }
+  }
 
-	int windowPos = SDL_WINDOWPOS_UNDEFINED;
-	if( parms.fullScreen > 0 ) {
-		if( parms.fullScreen > SDL_GetNumVideoDisplays() ) {
-			common->Warning( "Couldn't set display to num %i because we only have %i displays",
-							 parms.fullScreen, SDL_GetNumVideoDisplays() );
-		} else {
-			// -1 because SDL starts counting displays at 0, while parms.fullScreen starts at 1
-			windowPos = SDL_WINDOWPOS_UNDEFINED_DISPLAY( ( parms.fullScreen - 1 ) );
-		}
-	}
-	// TODO: if parms.fullScreen == -1 there should be a borderless window spanning multiple displays
-	/*
-	 * NOTE that this implicitly handles parms.fullScreen == -2 (from r_fullscreen -2) meaning
-	 * "do fullscreen, but I don't care on what monitor", at least on my box it's the monitor with
-	 * the mouse cursor.
-	 */
-	// Destroy existing state if it exists
-	if( SDL_glContext != NULL )	{
-		SDL_GL_DeleteContext( SDL_glContext );
-		SDL_glContext = NULL;
-	}
+  int windowPos = SDL_WINDOWPOS_UNDEFINED;
+  if( parms.fullScreen > 0 ) {
+    if( parms.fullScreen > SDL_GetNumVideoDisplays() ) {
+      common->Warning( "Couldn't set display to num %i because we only have %i displays",
+		       parms.fullScreen, SDL_GetNumVideoDisplays() );
+    } else {
+      // -1 because SDL starts counting displays at 0, while parms.fullScreen starts at 1
+      windowPos = SDL_WINDOWPOS_UNDEFINED_DISPLAY( ( parms.fullScreen - 1 ) );
+    }
+  }
+  // TODO: if parms.fullScreen == -1 there should be a borderless window spanning multiple displays
+  /*
+   * NOTE that this implicitly handles parms.fullScreen == -2 (from r_fullscreen -2) meaning
+   * "do fullscreen, but I don't care on what monitor", at least on my box it's the monitor with
+   * the mouse cursor.
+   */
+  // Destroy existing state if it exists
+  if( SDL_glContext != NULL )	{
+    SDL_GL_DeleteContext( SDL_glContext );
+    SDL_glContext = NULL;
+  }
 
-	if( SDL_window != NULL ) {
-		SDL_GetWindowPosition( SDL_window, &windowPos, &windowPos );
-		common->DPrintf( "Existing window at %dx%d before being destroyed\n", windowPos, windowPos );
-		SDL_DestroyWindow( SDL_window );
-		SDL_window = NULL;
-	}
+  if( SDL_window != NULL ) {
+    SDL_GetWindowPosition( SDL_window, &windowPos, &windowPos );
+    common->DPrintf( "Existing window at %dx%d before being destroyed\n", windowPos, windowPos );
+    SDL_DestroyWindow( SDL_window );
+    SDL_window = NULL;
+  }
 
-	if( ( SDL_window = SDL_CreateWindow( GAME_NAME, windowPos, windowPos, parms.width, parms.height, flags ) ) == 0 ) {
-		common->DPrintf( "SDL_CreateWindow failed: %s\n", SDL_GetError( ) );
-		return false;
-	}
 
-	if( ( SDL_glContext = (SDL_GLContext *)SDL_GL_CreateContext( SDL_window ) ) == NULL ) {
-		common->DPrintf( "SDL_GL_CreateContext failed: %s\n", SDL_GetError( ) );
-		return false;
-	}
+  //------------------------SETTERS
+  SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 8);
+  SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
+  SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 8);
+  if (r_waylandcompat.GetBool())
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
+  else
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+  SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
+  SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
 
-	if( SDL_GL_MakeCurrent( SDL_window, SDL_glContext ) < 0 ) {
-		common->DPrintf( "SDL_GL_MakeCurrent failed: %s\n", SDL_GetError( ) );
-		return false;
-	}
+  SDL_GL_SetAttribute(SDL_GL_STEREO, parms.stereo ? 1 : 0);
 
-	if (SDL_GL_SetSwapInterval(r_swapInterval.GetInteger()) < 0)
-		common->Warning("SDL_GL_SWAP_CONTROL not supported");
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, parms.multiSamples ? 1 : 0);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, parms.multiSamples);
 
-	SDL_GetWindowSize( SDL_window, &glConfig.vidWidth, &glConfig.vidHeight );
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	glConfig.isFullscreen = (SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN;
+  if( r_useOpenGL32.GetInteger() > 0 ) {
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
+    if( r_useOpenGL32.GetInteger() > 1 ) {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    } else {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+    }
+			
+    if( r_debugContext.GetBool() ) {
+      SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+    }
+  }
+
+  if( parms.fullScreen > 0 ) {
+    if( parms.fullScreen > SDL_GetNumVideoDisplays() ) {
+      common->Warning( "Couldn't set display to num %i because we only have %i displays",
+		       parms.fullScreen, SDL_GetNumVideoDisplays() );
+    } else {
+      // -1 because SDL starts counting displays at 0, while parms.fullScreen starts at 1
+      windowPos = SDL_WINDOWPOS_UNDEFINED_DISPLAY( ( parms.fullScreen - 1 ) );
+    }
+  }
+  // TODO: if parms.fullScreen == -1 there should be a borderless window spanning multiple displays
+  /*
+   * NOTE that this implicitly handles parms.fullScreen == -2 (from r_fullscreen -2) meaning
+   * "do fullscreen, but I don't care on what monitor", at least on my box it's the monitor with
+   * the mouse cursor.
+   */
+  // Destroy existing state if it exists
+  if( SDL_glContext != NULL )	{
+    SDL_GL_DeleteContext( SDL_glContext );
+    SDL_glContext = NULL;
+  }
+
+  if( SDL_window != NULL ) {
+    SDL_GetWindowPosition( SDL_window, &windowPos, &windowPos );
+    common->DPrintf( "Existing window at %dx%d before being destroyed\n", windowPos, windowPos );
+    SDL_DestroyWindow( SDL_window );
+    SDL_window = NULL;
+  }
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+  SDL_window = SDL_CreateWindow(GAME_NAME,
+    SDL_WINDOWPOS_UNDEFINED,
+    SDL_WINDOWPOS_UNDEFINED,
+    parms.width, parms.height, flags);
+  if (!SDL_window) {
+  common->DPrintf("Couldn't set GL mode %d/%d/%d: %s",
+		  channelcolorbits, tdepthbits, tstencilbits, SDL_GetError());
+  continue;
+  }
+
+  SDL_glContext = SDL_GL_CreateContext(SDL_window);
+  if (!SDL_glContext) {
+    common->DPrintf( "SDL_GL_CreateContext failed: %s\n", SDL_GetError( ) );
+    return false;
+  }
+
+
+
+
+  if( SDL_GL_MakeCurrent( SDL_window, SDL_glContext ) < 0 ) {
+    common->DPrintf( "SDL_GL_MakeCurrent failed: %s\n", SDL_GetError( ) );
+    return false;
+  }
+
+  if (SDL_GL_SetSwapInterval(r_swapInterval.GetInteger()) < 0)
+    common->Warning("SDL_GL_SWAP_CONTROL not supported");
+
+  SDL_GetWindowSize( SDL_window, &glConfig.vidWidth, &glConfig.vidHeight );
+
+  glConfig.isFullscreen = (SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN;
+
+#else
+  SDL_WM_SetCaption(GAME_NAME, GAME_NAME);
+  if (SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, r_swapInterval.GetInteger()) < 0)
+    common->Warning("SDL_GL_SWAP_CONTROL not supported");
+  SDL_window = SDL_SetVideoMode(parms.width, parms.height, colorbits, flags);
+  if (!SDL_window) {
+  common->DPrintf("Couldn't set GL mode %d/%d/%d: %s",
+    channelcolorbits, tdepthbits, tstencilbits, SDL_GetError());
+  continue;
+ }
+  glConfig.isFullscreen = (SDL_window->flags & SDL_FULLSCREEN) == SDL_FULLSCREEN;
+#endif
+  common->Printf("Using %d color bits, %d depth, %d stencil display\n",
+    channelcolorbits, tdepthbits, tstencilbits);
+
 	
-	glConfig.colorBits = 24;
-	glConfig.depthBits = 24;
-	glConfig.stencilBits = 8;
-	
-	glConfig.displayFrequency = 60;
+  glConfig.colorBits = tcolorbits;
+  glConfig.depthBits = tdepthbits;
+  glConfig.stencilBits = tstencilbits;
+  glConfig.displayFrequency = 0;
+  //	glConfig.displayFrequency = 60; new code has different?
 
-	// make sure cursor is not visible and grab window focus
-	SDL_ShowCursor( SDL_DISABLE );
-	SDL_SetWindowGrab( SDL_window, SDL_TRUE );
-
-	return true;
+  // make sure cursor is not visible and grab window focus
+  SDL_ShowCursor( SDL_DISABLE );
+  SDL_SetWindowGrab( SDL_window, SDL_TRUE );
+  break;
+ }
+ if (!SDL_window) {
+   common->Warning("No usable GL mode found: %s", SDL_GetError());
+   return false;
+  }
+ return true;
 }
 
 
@@ -306,6 +468,7 @@ GLimp_Shutdown
 void GLimp_Shutdown() {
 	common->Printf("Shutting down OpenGL subsystem\n");
 
+#if SDL_VERSION_ATLEAST(2, 0, 0)
 	if ( SDL_glContext ) {
 		SDL_GL_DeleteContext( SDL_glContext );
 		SDL_glContext = NULL;
@@ -315,6 +478,7 @@ void GLimp_Shutdown() {
 		SDL_DestroyWindow( SDL_window );
 		SDL_window = NULL;
 	}
+#endif
 }
 
 /*
@@ -337,7 +501,11 @@ void GLimp_SetGamma(unsigned short red[256], unsigned short green[256], unsigned
 		return;
 	}
 
+#if SDL_VERSION_ATLEAST(2, 0, 0)
 	if (SDL_SetWindowGammaRamp( SDL_window, red, green, blue ))
+#else
+        if (SDL_SetGammaRamp(red, green, blue))
+#endif
 		common->Warning("Couldn't set gamma ramp: %s", SDL_GetError());
 }
 
@@ -369,8 +537,15 @@ void GLimp_GrabInput(int flags) {
 		return;
 	}
 
-	SDL_SetRelativeMouseMode( flags & GRAB_ENABLE ? SDL_TRUE : SDL_FALSE );
-	SDL_SetWindowGrab( SDL_window, grab ? SDL_TRUE : SDL_FALSE );
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
+	SDL_SetRelativeMouseMode(flags & GRAB_HIDECURSOR ? SDL_TRUE : SDL_FALSE);
+	SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE);
+#else
+	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
+	SDL_WM_GrabInput(grab ? SDL_GRAB_ON : SDL_GRAB_OFF);
+#endif
 }
 
 class idSort_VidMode : public idSort_Quick< vidMode_t, idSort_VidMode > {
