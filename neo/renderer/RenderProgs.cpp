@@ -270,15 +270,10 @@ idRenderProgManager::Unbind
 ================================================================================================
 */
 void idRenderProgManager::Unbind() {
-  /*
-
-    FIXME broken resource frees
 	currentVertexShader = -1;
 	currentFragmentShader = -1;
 
 	qglUseProgram( 0 );
-  */
-  
 }
 
 /*
