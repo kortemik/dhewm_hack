@@ -5019,7 +5019,6 @@ void idPlayer::SetCurrentHeartRate( void ) {
 		pct += (float)zeroVol;
 
 		if ( pct != zeroVol ) {
-		  common->Warning( "KORTEMIK pct '%f' zeroVol '%i'\n", pct, zeroVol );
 			StartSound( "snd_heartbeat", SND_CHANNEL_HEART, SSF_PRIVATE_SOUND, false, NULL );
 			// modify just this channel to a custom volume
 			soundShaderParms_t	parms;
