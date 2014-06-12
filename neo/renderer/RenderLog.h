@@ -106,13 +106,13 @@ public:
 	idFile*					logFile;
 
 	struct logStats_t {
-		u_int64_t	startTiming;
+		unsigned int	startTiming;
 		int		startDraws;
 		int		startIndexes;
 	};
 
-	u_int64_t					frameStartTime;
-	u_int64_t					closeBlockTime;
+	unsigned int					frameStartTime;
+	unsigned int					closeBlockTime;
 	logStats_t				logStats[MAX_LOG_LEVELS];
 	int						logLevel;
 

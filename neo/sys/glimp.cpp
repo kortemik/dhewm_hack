@@ -318,7 +318,6 @@ for (int i = 0; i < 16; i++) {
   glConfig.depthBits = tdepthbits;
   glConfig.stencilBits = tstencilbits;
   glConfig.displayFrequency = 0;
-  //	glConfig.displayFrequency = 60; new code has different?
 
   // make sure cursor is not visible and grab window focus
   SDL_ShowCursor( SDL_DISABLE );

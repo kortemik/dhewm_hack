@@ -179,7 +179,7 @@ int saved_ebx = 0;
 
 double ticksPerNanosecond;
 
-#define TIME_TYPE uint64_t
+#define TIME_TYPE uint
 
 #define StartRecordTime( start )			\
 	start = mach_absolute_time();
