@@ -1,8 +1,0 @@
-text_firstPDA
-text_infoTitle
-text_key
-text_noPDA
-text_PDANeeded
-text_security
-text_tip
-text_title
