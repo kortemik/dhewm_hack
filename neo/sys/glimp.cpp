@@ -26,8 +26,8 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 
 #include "sys/platform.h"
 #include "framework/Licensee.h"
@@ -317,6 +317,7 @@ for (int i = 0; i < 16; i++) {
   glConfig.colorBits = tcolorbits;
   glConfig.depthBits = tdepthbits;
   glConfig.stencilBits = tstencilbits;
+  // FIXME kortemik?
   glConfig.displayFrequency = 0;
 
   // make sure cursor is not visible and grab window focus

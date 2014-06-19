@@ -26,7 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include "sys/platform.h"
 #include "idlib/containers/List.h"
@@ -38,25 +38,6 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/sys_public.h"
 
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-#define SDL_Keycode SDLKey
-#define SDLK_APPLICATION SDLK_COMPOSE
-#define SDLK_SCROLLLOCK SDLK_SCROLLOCK
-#define SDLK_LGUI SDLK_LSUPER
-#define SDLK_RGUI SDLK_RSUPER
-#define SDLK_KP_0 SDLK_KP0
-#define SDLK_KP_1 SDLK_KP1
-#define SDLK_KP_2 SDLK_KP2
-#define SDLK_KP_3 SDLK_KP3
-#define SDLK_KP_4 SDLK_KP4
-#define SDLK_KP_5 SDLK_KP5
-#define SDLK_KP_6 SDLK_KP6
-#define SDLK_KP_7 SDLK_KP7
-#define SDLK_KP_8 SDLK_KP8
-#define SDLK_KP_9 SDLK_KP9
-#define SDLK_NUMLOCKCLEAR SDLK_NUMLOCK
-#define SDLK_PRINTSCREEN SDLK_PRINT
-#endif
 
 const char *kbdNames[] = {
 	"english", "french", "german", "italian", "spanish", "turkish", "norwegian", NULL
@@ -284,11 +265,6 @@ void Sys_InitInput() {
 	kbd_polls.SetGranularity(64);
 	mouse_polls.SetGranularity(64);
 
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_EnableUNICODE(1);
-	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-#endif
-
 	in_kbd.SetModified();
 }
 
@@ -389,7 +365,6 @@ sysEvent_t Sys_GetEvent() {
 
 	static const sysEvent_t res_none = { SE_NONE, 0, 0, 0, NULL };
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	static char *s = NULL;
 	static size_t s_pos = 0;
 
@@ -406,7 +381,6 @@ sysEvent_t Sys_GetEvent() {
 
 		return res;
 	}
-#endif
 
 	static byte c = 0;
 
@@ -421,7 +395,6 @@ sysEvent_t Sys_GetEvent() {
 
 	if (SDL_PollEvent(&ev)) {
 		switch (ev.type) {
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 		case SDL_WINDOWEVENT:
 			switch (ev.window.event) {
 				case SDL_WINDOWEVENT_FOCUS_GAINED: {
@@ -430,8 +403,10 @@ sysEvent_t Sys_GetEvent() {
 						SDL_Keymod currentmod = SDL_GetModState();
 					
 						int newmod = KMOD_NONE;
-						if (currentmod & KMOD_CAPS) // preserve capslock
+						/*
+						  if (currentmod & KMOD_CAPS) // preserve capslock
 							newmod |= KMOD_CAPS;
+						*/
 
 						SDL_SetModState((SDL_Keymod)newmod);
 					} // new context because visual studio complains about newmod and currentmod not initialized because of the case SDL_WINDOWEVENT_FOCUS_LOST
@@ -444,32 +419,6 @@ sysEvent_t Sys_GetEvent() {
 			}
 
 			return res_none;
-#else
-		case SDL_ACTIVEEVENT:
-			{
-				int flags = 0;
-
-				if (ev.active.gain) {
-					flags = GRAB_ENABLE | GRAB_REENABLE | GRAB_HIDECURSOR;
-
-					// unset modifier, in case alt-tab was used to leave window and ALT is still set
-					// as that can cause fullscreen-toggling when pressing enter...
-					SDLMod currentmod = SDL_GetModState();
-					int newmod = KMOD_NONE;
-					if (currentmod & KMOD_CAPS) // preserve capslock
-						newmod |= KMOD_CAPS;
-
-					SDL_SetModState((SDLMod)newmod);
-				}
-
-				GLimp_GrabInput(flags);
-			}
-
-			return res_none;
-
-		case SDL_VIDEOEXPOSE:
-			return res_none;
-#endif
 
 		case SDL_KEYDOWN:
 			if (ev.key.keysym.sym == SDLK_RETURN && (ev.key.keysym.mod & KMOD_ALT) > 0) {
@@ -481,21 +430,6 @@ sysEvent_t Sys_GetEvent() {
 			// fall through
 		case SDL_KEYUP:
 			key = mapkey(ev.key.keysym.sym);
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-			if (!key) {
-				unsigned char c;
-				// check if its an unmapped console key
-				if (ev.key.keysym.unicode == (c = Sys_GetConsoleKey(false))) {
-					key = c;
-				} else if (ev.key.keysym.unicode == (c = Sys_GetConsoleKey(true))) {
-					key = c;
-				} else {
-					if (ev.type == SDL_KEYDOWN)
-						common->Warning("unmapped SDL key %d (0x%x)", ev.key.keysym.sym, ev.key.keysym.unicode);
-					return res_none;
-				}
-			}
-#else
 			if(!key) {
 				if (ev.key.keysym.scancode == SDL_SCANCODE_GRAVE) {
 					key = Sys_GetConsoleKey(true);
@@ -508,25 +442,17 @@ sysEvent_t Sys_GetEvent() {
 				}
 			}
 
-#endif
-
 			res.evType = SE_KEY;
 			res.evValue = key;
 			res.evValue2 = ev.key.state == SDL_PRESSED ? 1 : 0;
 
 			kbd_polls.Append(kbd_poll_t(key, ev.key.state == SDL_PRESSED));
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 			if (key == K_BACKSPACE && ev.key.state == SDL_PRESSED)
 				c = key;
-#else
-			if (ev.key.state == SDL_PRESSED && (ev.key.keysym.unicode & 0xff00) == 0)
-				c = ev.key.keysym.unicode & 0xff;
-#endif
 
 			return res;
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 		case SDL_TEXTINPUT:
 			if (ev.text.text && *ev.text.text) {
 				if (!ev.text.text[1])
@@ -536,7 +462,6 @@ sysEvent_t Sys_GetEvent() {
 			}
 
 			return res_none;
-#endif
 
 		case SDL_MOUSEMOTION:
 			res.evType = SE_MOUSE;
@@ -548,7 +473,6 @@ sysEvent_t Sys_GetEvent() {
 
 			return res;
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 		case SDL_MOUSEWHEEL:
 			res.evType = SE_KEY;
 
@@ -563,7 +487,6 @@ sysEvent_t Sys_GetEvent() {
 			res.evValue2 = 1;
 
 			return res;
-#endif
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
@@ -583,18 +506,6 @@ sysEvent_t Sys_GetEvent() {
 				mouse_polls.Append(mouse_poll_t(M_ACTION2, ev.button.state == SDL_PRESSED ? 1 : 0));
 				break;
 
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-			case SDL_BUTTON_WHEELUP:
-				res.evValue = K_MWHEELUP;
-				if (ev.button.state == SDL_PRESSED)
-					mouse_polls.Append(mouse_poll_t(M_DELTAZ, 1));
-				break;
-			case SDL_BUTTON_WHEELDOWN:
-				res.evValue = K_MWHEELDOWN;
-				if (ev.button.state == SDL_PRESSED)
-					mouse_polls.Append(mouse_poll_t(M_DELTAZ, -1));
-				break;
-#endif
 			}
 
 			res.evValue2 = ev.button.state == SDL_PRESSED ? 1 : 0;

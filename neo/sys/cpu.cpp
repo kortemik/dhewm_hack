@@ -28,7 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <float.h>
 
-#include <SDL_cpuinfo.h>
+#include <SDL2/SDL_cpuinfo.h>
 
 // MSVC header intrin.h uses strcmp and errors out when not set
 #define IDSTR_NO_REDIRECT
