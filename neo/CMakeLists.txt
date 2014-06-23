@@ -29,7 +29,6 @@ option(BASE			"Build the base game code" ON)
 option(D3XP			"Build the d3xp game code" OFF)
 option(DEDICATED		"Build the dedicated server" OFF)
 option(ONATIVE			"Optimize for the host CPU" OFF)
-option(SDL2			"Use SDL2 instead of SDL1.2" ON)
 
 if(NOT CMAKE_SYSTEM_PROCESSOR)
 	message(FATAL_ERROR "No target CPU architecture set")
@@ -63,19 +62,8 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif()
 
-# precompiled libraries from the dhewm3-libs repo
-if(DHEWM3LIBS)
-	if(CMAKE_CROSSCOMPILING)
-		set(CMAKE_FIND_ROOT_PATH ${DHEWM3LIBS})
-	else()
-		set(ENV{CMAKE_PREFIX_PATH} ${DHEWM3LIBS})
-	endif()
 
-	# these are too stupid, give them a hint
-	set(ENV{OPENALDIR} ${DHEWM3LIBS})
-	set(ENV{SDLDIR} ${DHEWM3LIBS})
-	set(ENV{SDL2DIR} ${DHEWM3LIBS})
-endif()
+#set(ENV{OPENALDIR} ${DHEWM3LIBS})
 
 # libs
 find_package(ZLIB REQUIRED)
@@ -100,23 +88,13 @@ include_directories(${VORBISFILE_INCLUDE_DIR})
 find_package(OpenAL REQUIRED)
 include_directories(${OPENAL_INCLUDE_DIR})
 
-if (SDL2)
-	# skip SDL2main
-	if(APPLE OR WIN32)
-		set(SDL2_BUILDING_LIBRARY TRUE)
-	endif()
-	find_package(SDL2 REQUIRED)
-	include_directories(${SDL2_INCLUDE_DIR})
-	set(SDLx_LIBRARY ${SDL2_LIBRARY})
-else()
-	# skip SDLmain
-	if(APPLE OR WIN32)
-		set(SDL_BUILDING_LIBRARY TRUE)
-	endif()
-	find_package(SDL REQUIRED)
-	include_directories(${SDL_INCLUDE_DIR})
-	set(SDLx_LIBRARY ${SDL_LIBRARY})
-endif()
+
+#if(APPLE OR WIN32)
+#	set(SDL2_BUILDING_LIBRARY TRUE)
+#endif()
+
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIR})
 
 find_package(CURL QUIET)
 if(CURL_FOUND)
@@ -131,6 +109,7 @@ endif()
 # compiler specific flags
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-ftrapv)
+	add_definitions(-fpermissive)
 	add_definitions(-pipe)
 	add_definitions(-Wall)
 #	add_definitions(-Wextra)
@@ -255,7 +234,6 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL ${CMAKE_C_FLAGS_MINSIZEREL})
 if(WIN32)
 	add_definitions(-DWINVER=0x0501)
 	add_definitions(-D_WIN32_WINNT=0x0501)
-
 	set(sys_libs ${sys_libs}
 		winmm
 		iphlpapi
@@ -732,7 +710,7 @@ elseif(WIN32)
 		sys/win32/win_net.cpp
 		sys/win32/win_shared.cpp
 		sys/win32/win_syscon.cpp
-		sys/win32/SDL_win32_main.c
+#		sys/win32/SDL_win32_main.c
 	)
 
 	set(src_sys_core
@@ -773,6 +751,8 @@ if(CORE)
 	set_target_properties(dhewm3 PROPERTIES LINK_FLAGS "${ldflags}")
 	set_target_properties(dhewm3 PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/sys/osx/Info.plist)
 
+# linking with SDL2main on windows
+if(WIN32)
 	target_link_libraries(dhewm3
 		idlib
 		${OPENAL_LIBRARY}
@@ -782,9 +762,24 @@ if(CORE)
 		${CURL_LIBRARY}
 		${JPEG_LIBRARY}
 		${ZLIB_LIBRARY}
-		${SDLx_LIBRARY}
+		${SDL2_LIBRARY}
+		${SDL2MAIN_LIBRARY}
 		${sys_libs}
 	)
+else()
+	target_link_libraries(dhewm3
+		idlib
+		${OPENAL_LIBRARY}
+		${OGG_LIBRARIES}
+		${VORBISFILE_LIBRARIES}
+		${VORBIS_LIBRARIES}
+		${CURL_LIBRARY}
+		${JPEG_LIBRARY}
+		${ZLIB_LIBRARY}
+		${SDL2_LIBRARY}
+		${sys_libs}
+	)
+endif()
 
 	if(NOT APPLE AND NOT WIN32)
 		install(TARGETS dhewm3
@@ -812,7 +807,7 @@ if(DEDICATED)
 		${CURL_LIBRARY}
 		${JPEG_LIBRARY}
 		${ZLIB_LIBRARY}
-		${SDLx_LIBRARY}
+		${SDL2_LIBRARY}
 		${sys_libs}
 	)
 

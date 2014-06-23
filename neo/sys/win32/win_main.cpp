@@ -32,7 +32,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/Licensee.h"
 #include "framework/UsercmdGen.h"
 #include "renderer/tr_local.h"
-#include "sys/win32/rc/CreateResourceIDs.h"
+//#include "sys/win32/rc/CreateResourceIDs.h"
 #include "sys/sys_local.h"
 
 #include "sys/win32/win_local.h"
@@ -51,6 +51,7 @@ If you have questions concerning this license or the applicable additional terms
 #include <sys/stat.h>
 #endif
 
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
 
 idCVar Win32Vars_t::win_outputDebugString( "win_outputDebugString", "0", CVAR_SYSTEM | CVAR_BOOL, "" );
@@ -643,6 +644,12 @@ int main(int argc, char *argv[]) {
 	Sys_SetPhysicalWorkMemory( 192 << 20, 1024 << 20 );
 
 	win32.hInstance = GetModuleHandle(NULL);
+
+#ifndef ID_DEDICATED
+	// Initialize SDL2
+	if( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_EVENTS) < 0 )
+		return EXIT_FAILURE;
+#endif
 
 	// done before Com/Sys_Init since we need this for error output
 	Sys_CreateConsole();

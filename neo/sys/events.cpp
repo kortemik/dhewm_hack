@@ -74,6 +74,8 @@ struct mouse_poll_t {
 static idList<kbd_poll_t> kbd_polls;
 static idList<mouse_poll_t> mouse_polls;
 
+void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr );
+
 static byte mapkey(SDL_Keycode key) {
 	switch (key) {
 	case SDLK_BACKSPACE:
@@ -286,7 +288,7 @@ Sys_InitScanTable
 // Windows has its own version due to the tools
 #ifndef _WIN32
 void Sys_InitScanTable() {
-}
+  }
 #endif
 
 /*
@@ -397,24 +399,62 @@ sysEvent_t Sys_GetEvent() {
 		switch (ev.type) {
 		case SDL_WINDOWEVENT:
 			switch (ev.window.event) {
-				case SDL_WINDOWEVENT_FOCUS_GAINED: {
-						// unset modifier, in case alt-tab was used to leave window and ALT is still set
-						// as that can cause fullscreen-toggling when pressing enter...
-						SDL_Keymod currentmod = SDL_GetModState();
-					
-						int newmod = KMOD_NONE;
-						/*
-						  if (currentmod & KMOD_CAPS) // preserve capslock
-							newmod |= KMOD_CAPS;
-						*/
-
-						SDL_SetModState((SDL_Keymod)newmod);
-					} // new context because visual studio complains about newmod and currentmod not initialized because of the case SDL_WINDOWEVENT_FOCUS_LOST
-
+			        case SDL_WINDOWEVENT_SHOWN:
+					SDL_Log("Window %d shown", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_HIDDEN:
+					SDL_Log("Window %d hidden", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_EXPOSED:
+					SDL_Log("Window %d exposed", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_MOVED:
+					SDL_Log("Window %d moved to %d,%d",
+							ev.window.windowID, ev.window.data1,
+							ev.window.data2);
+					break;
+				case SDL_WINDOWEVENT_RESIZED:
+					SDL_Log("Window %d resized to %dx%d",
+							ev.window.windowID, ev.window.data1,
+							ev.window.data2);
+					break;
+				case SDL_WINDOWEVENT_MINIMIZED:
+					SDL_Log("Window %d minimized", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_MAXIMIZED:
+					SDL_Log("Window %d maximized", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_RESTORED:
+					SDL_Log("Window %d restored", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_ENTER:
+					SDL_Log("Mouse entered window %d",
+							ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_LEAVE:
+					SDL_Log("Mouse left window %d", ev.window.windowID);
+					break;
+				case SDL_WINDOWEVENT_FOCUS_GAINED:
+					SDL_Log("Window %d gained keyboard focus",
+							ev.window.windowID);
+					cvarSystem->SetCVarBool( "com_pause", false );
 					GLimp_GrabInput(GRAB_ENABLE | GRAB_REENABLE | GRAB_HIDECURSOR);
 					break;
 				case SDL_WINDOWEVENT_FOCUS_LOST:
+					SDL_Log("Window %d lost keyboard focus",
+							ev.window.windowID);
+					cvarSystem->SetCVarBool( "com_pause", true );
 					GLimp_GrabInput(0);
+					break;
+				case SDL_WINDOWEVENT_CLOSE:
+					SDL_Log("Window %d closed", ev.window.windowID);
+					break;
+				case SDL_QUIT:
+					SDL_Quit();
+					break;
+				default:
+					SDL_Log("Window %d got unknown event %d",
+							ev.window.windowID, ev.window.event);
 					break;
 			}
 
@@ -424,6 +464,10 @@ sysEvent_t Sys_GetEvent() {
 			if (ev.key.keysym.sym == SDLK_RETURN && (ev.key.keysym.mod & KMOD_ALT) > 0) {
 				cvarSystem->SetCVarBool("r_fullscreen", !renderSystem->IsFullScreen());
 				PushConsoleEvent("vid_restart");
+				/*
+				 * FIXME vid_restart
+				 */
+
 				return res_none;
 			}
 
@@ -628,3 +672,80 @@ Sys_EndMouseInputEvents
 void Sys_EndMouseInputEvents() {
 	mouse_polls.SetNum(0, false);
 }
+
+//
+///*
+// * NEW
+// */
+//
+//void SDL_AddKeyboardPollEvent(int key, bool state) {
+//	kbd_polls.Append(kbd_poll_t(key, state));
+//}
+//
+//void SDL_AddMousePollEvent(int action, int value) {
+//	mouse_polls.Append(mouse_poll_t(action, value));
+//}
+//
+//
+///*
+//================
+//SDL_QueEvent
+// 
+//ptr should either be null, or point to a block of data that can be freed later
+//================
+//*/
+//#define	MAX_QUED_EVENTS		256
+//#define	MASK_QUED_EVENTS	( MAX_QUED_EVENTS - 1 )
+//
+//static sysEvent_t eventQue[MAX_QUED_EVENTS];
+//static int eventHead, eventTail;
+//
+//void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr ) {
+//	sysEvent_t *ev;
+//
+//	ev = &eventQue[eventHead & MASK_QUED_EVENTS];
+//	if (eventHead - eventTail >= MAX_QUED_EVENTS) {
+//		common->Printf( "SDL_QueEvent: overflow\n" );
+//		// we are discarding an event, but don't leak memory
+//		// TTimo: verbose dropped event types?
+//		if (ev->evPtr) {
+//			Mem_Free(ev->evPtr);
+//			ev->evPtr = NULL;
+//		}
+//		eventTail++;
+//	}
+//
+//	eventHead++;
+//
+//	ev->evType = type;
+//	ev->evValue = value;
+//	ev->evValue2 = value2;
+//	ev->evPtrLength = ptrLength;
+//	ev->evPtr = ptr;
+//	
+//	common->Printf( "Event %d: %d %d\n", ev->evType, ev->evValue, ev->evValue2 );
+//}
+//
+///*
+//================
+//Sys_GetEvent
+//================
+//*/
+//sysEvent_t Sys_GetEvent( void )
+//{
+//	static sysEvent_t ev;
+//
+//	SDL_PollEvents();
+//
+//	// return if we have data
+//	if (eventHead > eventTail) {
+//		eventTail++;
+//		return eventQue[(eventTail - 1) & MASK_QUED_EVENTS];
+//	}
+//
+//	// return the empty event with the current time
+//	memset(&ev, 0, sizeof(ev));
+//
+//	return ev;
+//}
+//
