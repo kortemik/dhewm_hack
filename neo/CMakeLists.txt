@@ -755,6 +755,9 @@ if(CORE)
 if(WIN32)
 	target_link_libraries(dhewm3
 		idlib
+		${SDL2DLL_LIBRARY}
+		${SDL2MAIN_LIBRARY}
+		${SDL2_LIBRARY}
 		${OPENAL_LIBRARY}
 		${OGG_LIBRARIES}
 		${VORBISFILE_LIBRARIES}
@@ -762,9 +765,6 @@ if(WIN32)
 		${CURL_LIBRARY}
 		${JPEG_LIBRARY}
 		${ZLIB_LIBRARY}
-		${SDL2DLL_LIBRARY}
-		${SDL2_LIBRARY}
-		${SDL2MAIN_LIBRARY}
 		${sys_libs}
 	)
 else()
