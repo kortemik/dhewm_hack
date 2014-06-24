@@ -754,9 +754,9 @@ if(CORE)
 # linking with SDL2main on windows
 if(WIN32)
 	target_link_libraries(dhewm3
+		${SDL2MAIN_LIBRARY}
 		idlib
 		${SDL2DLL_LIBRARY}
-		${SDL2MAIN_LIBRARY}
 		${SDL2_LIBRARY}
 		${OPENAL_LIBRARY}
 		${OGG_LIBRARIES}
