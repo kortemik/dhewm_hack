@@ -1,0 +1,185 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>fi.xnet</groupId>
+  <artifactId>dhewm3.mingw32</artifactId>
+  <version>1-SNAPSHOT</version>
+  <name>fi.xnet.dhewm3</name>
+  <description>dhewm3 in xnet repos</description>
+  <build>
+    <plugins>
+      <plugin>
+	<groupId>com.googlecode.cmake-maven-project</groupId>
+	<artifactId>cmake-maven-plugin</artifactId>
+	<version>2.8.11-b4</version>
+	<configuration>
+          <sourcePath>neo</sourcePath>
+          <targetPath>target/built.mingw32</targetPath>
+          <generator>Unix Makefiles</generator>
+	  <projectDirectory>target/built.mingw32</projectDirectory>
+	  <buildDirectory>target/built.mingw32</buildDirectory>
+	</configuration>
+	<executions>
+	  <execution>
+	    <configuration>
+	      <options>
+		<option>-DCMAKE_BUILD_TYPE=Debug</option>
+		<option>-DCMAKE_TOOLCHAIN_FILE=../../mingw32/toolchain.cmake</option>
+	      </options>
+	    </configuration>
+
+	    <id>cmake-generate</id>
+	    <phase>process-resources</phase>
+	    <goals>
+              <goal>generate</goal>
+	    </goals>
+	  </execution>
+	  <execution>
+	    <id>cmake-compile</id>
+	    <phase>compile</phase>
+	    <goals>
+              <goal>compile</goal>
+	    </goals>
+	  </execution>
+	  <!--	  <execution>
+	    <id>cmake-test</id>
+	    <phase>test</phase>
+	    <goals>
+              <goal>test</goal>
+	    </goals>
+	  </execution>-->
+	</executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <configuration>
+              <tasks>
+                <copy todir="target/snapshot.mingw32" flatten="true">
+                  <fileset dir="target/built.mingw32">
+                    <include name="base.dll"/>
+                    <include name="d3xp.dll"/>
+                    <include name="dhewm3.exe"/>
+                  </fileset>
+                  <fileset dir="/usr/x86_64-w64-mingw32/sys-root/mingw/bin">
+		    <include name="libgcc_s_seh-1.dll"/>
+		    <include name="libjpeg-62.dll"/>
+		    <include name="libturbojpeg.dll"/>
+		    <include name="libvorbis-0.dll"/>
+		    <include name="zlib1.dll"/>
+		    <include name="libogg-0.dll"/>
+		    <include name="libssp-0.dll"/>
+		    <include name="libstdc++-6.dll"/>
+		    <include name="libvorbisfile-3.dll"/>
+		    <include name="libwinpthread-1.dll"/>
+		    <include name="libvorbisenc-2.dll"/>
+                  </fileset>
+                  <fileset dir="mingw32/SDL2-2.0.3-x86_64-w64-mingw32/bin">
+		    <include name="SDL2.dll"/>
+                  </fileset>
+                  <fileset dir="mingw32/openal-soft-1.15.1-x86_64-w64-mingw32/bin">
+		    <include name="OpenAL32.dll"/>
+                  </fileset>
+		</copy>
+		<copy todir="target/snapshot.mingw32/base" flatten="true">
+		  <fileset dir="base">
+		    <include name="default.cfg"/>
+		  </fileset>
+                </copy>
+		<copy todir="target/snapshot.mingw32/base/renderprogs" flatten="true">
+		  <fileset dir="base/renderprogs">
+		    <include name="blendLight.pixel"/>
+		    <include name="blendLight.vertex"/>
+		    <include name="bumpyenvironment.pixel"/>
+		    <include name="bumpyenvironment.vertex"/>
+		    <include name="color.pixel"/>
+		    <include name="colorProcess.pixel"/>
+		    <include name="colorProcess.vertex"/>
+		    <include name="color.vertex"/>
+		    <include name="depth.pixel"/>
+		    <include name="depth.vertex"/>
+		    <include name="environment.pixel"/>
+		    <include name="environment.vertex"/>
+		    <include name="fog.pixel"/>
+		    <include name="fog.vertex"/>
+		    <include name="fxaa.pixel"/>
+		    <include name="fxaa.vertex"/>
+		    <include name="global.inc"/>
+		    <include name="gui.pixel"/>
+		    <include name="gui.vertex"/>
+		    <include name="heathaze.pixel"/>
+		    <include name="heathaze.vertex"/>
+		    <include name="heatHazeWithMaskAndVertex.pixel"/>
+		    <include name="heatHazeWithMaskAndVertex.vertex"/>
+		    <include name="heatHazeWithMask.pixel"/>
+		    <include name="heatHazeWithMask.vertex"/>
+		    <include name="interactionAmbient.pixel"/>
+		    <include name="interactionAmbient.vertex"/>
+		    <include name="interaction.pixel"/>
+		    <include name="interaction.vertex"/>
+		    <include name="motionBlur.pixel"/>
+		    <include name="motionBlur.vertex"/>
+		    <include name="postprocess.pixel"/>
+		    <include name="postprocess.vertex"/>
+		    <include name="shadowDebug.pixel"/>
+		    <include name="shadowDebug.vertex"/>
+		    <include name="shadow.pixel"/>
+		    <include name="shadow.vertex"/>
+		    <include name="simpleshade.pixel"/>
+		    <include name="simpleshade.vertex"/>
+		    <include name="skybox.pixel"/>
+		    <include name="skybox.vertex"/>
+		    <include name="stereoDeGhost.pixel"/>
+		    <include name="stereoDeGhost.vertex"/>
+		    <include name="stereoInterlace.pixel"/>
+		    <include name="stereoInterlace.vertex"/>
+		    <include name="stereoWarp.pixel"/>
+		    <include name="stereoWarp.vertex"/>
+		    <include name="texture_color.pixel"/>
+		    <include name="texture_color_texgen.pixel"/>
+		    <include name="texture_color_texgen.vertex"/>
+		    <include name="texture_color.vertex"/>
+		    <include name="texture.pixel"/>
+		    <include name="texture.vertex"/>
+		    <include name="wobblesky.pixel"/>
+		    <include name="wobblesky.vertex"/>
+		  </fileset>
+                </copy>
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <descriptors>
+	    <descriptor>mingw32/assembly.xml</descriptor>
+          </descriptors>
+        </configuration>
+	<executions>
+	  <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+	  </execution>
+	</executions>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>com.googlecode.cmake-maven-project</groupId>
+      <artifactId>cmake-maven-plugin</artifactId>
+      <version>2.8.11-b4</version>
+    </dependency>
+  </dependencies>
+</project>
+

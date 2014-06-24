@@ -1,0 +1,1 @@
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=/home/C933925/fi.xnet.dhewm3/mingw64.toolchain.cmake ../../neo/
