@@ -1,7 +1,5 @@
 mingw64-gcc-c++
 mingw64-libjpeg-turbo
 mingw64-libvorbis
-mingw64-SDL2
-mingw64-SDL
 mingw64-zlib
-OpenAL
+

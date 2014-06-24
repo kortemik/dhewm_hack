@@ -2,4 +2,6 @@ gcc-c++
 libjpeg-devel
 libvorbis-devel
 openal-devel
-SDL-devel
+SDL2-devel
+zlib
+glibc.i686 # for cmake-plugin
