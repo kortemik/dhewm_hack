@@ -38,14 +38,10 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/sys_public.h"
 
+
 const char *kbdNames[] = {
 	"english", "french", "german", "italian", "spanish", "turkish", "norwegian", NULL
 };
-
-void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr );
-void SDL_AddKeyboardPollEvent(int key, bool state);
-void SDL_AddMousePollEvent(int action, int value);
-
 
 idCVar in_kbd("in_kbd", "english", CVAR_SYSTEM | CVAR_ARCHIVE | CVAR_NOCHEAT, "keyboard layout", kbdNames, idCmdSystem::ArgCompletion_String<kbdNames> );
 
@@ -77,6 +73,8 @@ struct mouse_poll_t {
 
 static idList<kbd_poll_t> kbd_polls;
 static idList<mouse_poll_t> mouse_polls;
+
+void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr );
 
 static byte mapkey(SDL_Keycode key) {
 	switch (key) {
@@ -287,8 +285,10 @@ void Sys_ShutdownInput() {
 Sys_InitScanTable
 ===========
 */
+
+
 void Sys_InitScanTable() {
-}
+  }
 
 
 /*
@@ -330,18 +330,40 @@ void Sys_GrabMouseCursor(bool grabIt) {
 Sys_GetEvent
 ================
 */
-
-/*
-polls single event from SDL and appends to local processing que
-*/
-
-void SDL_PollEvents (void) { 
-
+sysEvent_t Sys_GetEvent() {
 	SDL_Event ev;
+	sysEvent_t res = { };
+	byte key;
 
-	int doomKey;
-	bool keyDownFlag;
-		
+	static const sysEvent_t res_none = { SE_NONE, 0, 0, 0, NULL };
+
+	static char *s = NULL;
+	static size_t s_pos = 0;
+
+	if (s) {
+		res.evType = SE_CHAR;
+		res.evValue = s[s_pos];
+
+		s_pos++;
+		if (!s[s_pos]) {
+			free(s);
+			s = NULL;
+			s_pos = 0;
+		}
+
+		return res;
+	}
+
+	static byte c = 0;
+
+	if (c) {
+		res.evType = SE_CHAR;
+		res.evValue = c;
+
+		c = 0;
+
+		return res;
+	}
 
 	if (SDL_PollEvent(&ev)) {
 		switch (ev.type) {
@@ -402,7 +424,8 @@ void SDL_PollEvents (void) {
 							ev.window.windowID, ev.window.event);
 					break;
 			}
-			break;
+
+			return res_none;
 
 		case SDL_KEYDOWN:
 			if (ev.key.keysym.sym == SDLK_RETURN && (ev.key.keysym.mod & KMOD_ALT) > 0) {
@@ -411,58 +434,49 @@ void SDL_PollEvents (void) {
 				/*
 				 * FIXME vid_restart
 				 */
-				break;
+
+				return res_none;
 			}
 
 			// fall through
 		case SDL_KEYUP:
-		  {
-		    doomKey = mapkey(ev.key.keysym.sym);
-			if(!doomKey) {
-			  if (ev.type == SDL_KEYDOWN) {
-			    common->Warning("unmapped SDL key %d", ev.key.keysym.sym);
-			    break;
-			  }
+			key = mapkey(ev.key.keysym.sym);
+			if(!key) {
+				if (ev.key.keysym.scancode == SDL_SCANCODE_GRAVE) {
+					key = Sys_GetConsoleKey(true);
+				} else {
+					if (ev.type == SDL_KEYDOWN) {
+						common->Warning("unmapped SDL key %d", ev.key.keysym.sym);
+					return res_none;
+					}
+
+				}
 			}
-			
-			keyDownFlag = ev.key.state == SDL_PRESSED ? 1 : 0;
-			
-			SDL_QueEvent( SE_KEY, doomKey, keyDownFlag, 0, NULL );
-			if( keyDownFlag )
-			  SDL_QueEvent( SE_CHAR, doomKey, 0, 0, NULL);
-			SDL_AddKeyboardPollEvent( doomKey, keyDownFlag );
-		  }
-			break;
+
+			res.evType = SE_KEY;
+			res.evValue = key;
+			res.evValue2 = ev.key.state == SDL_PRESSED ? 1 : 0;
+
+			kbd_polls.Append(kbd_poll_t(key, ev.key.state == SDL_PRESSED));
+
+			if (key == K_BACKSPACE && ev.key.state == SDL_PRESSED)
+				c = key;
+
+			return res;
+
 		case SDL_TEXTINPUT:
-		  {
-		      //unicode input, i.e. windows utf16 falls down here
-		    byte c;
-		    char *s;
-		    if (ev.text.text && *ev.text.text) {
-		      if (!ev.text.text[1])
-			c = *ev.text.text;
-		      else
-			s = strdup(ev.text.text);
-		    }
-		    doomKey = mapkey(c);
-			if(!doomKey) {
-			  if (ev.type == SDL_KEYDOWN) {
-			    common->Warning("unmapped SDL key %d", ev.key.keysym.sym);
-			    break;
-			  }
+			if (ev.text.text && *ev.text.text) {
+				if (!ev.text.text[1])
+					c = *ev.text.text;
+				else
+					s = strdup(ev.text.text);
 			}
 
-			SDL_QueEvent( SE_KEY, doomKey, keyDownFlag, 0, NULL );
-			if( keyDownFlag )
-			  SDL_QueEvent( SE_CHAR, doomKey, 0, 0, NULL);
-			SDL_AddKeyboardPollEvent( doomKey, keyDownFlag );
-
-		  }
-		  break;
+			return res_none;
 		case SDL_TEXTEDITING:
 		  SDL_StartTextInput();
 		  SDL_Log("SDL_TextEditingEvent");
-		  SDL_StopTextInput();
+		  //SDL_StopTextInput();
 		  break;
 		case SDL_SYSWMEVENT:
 		  SDL_Log("SDL_SYSWMEVENT");
@@ -470,67 +484,79 @@ void SDL_PollEvents (void) {
 		case SDL_CLIPBOARDUPDATE:
 		  SDL_Log("SDL_CLIPBOARDUPDATE");
 		  break;
-		case SDL_MOUSEMOTION:
-			SDL_QueEvent( SE_MOUSE, ev.motion.xrel, ev.motion.yrel, 0, NULL);
 
-			SDL_AddMousePollEvent( M_DELTAX, ev.motion.xrel );
-			SDL_AddMousePollEvent( M_DELTAY, ev.motion.yrel );
-			break;
+		case SDL_MOUSEMOTION:
+			res.evType = SE_MOUSE;
+			res.evValue = ev.motion.xrel;
+			res.evValue2 = ev.motion.yrel;
+
+			mouse_polls.Append(mouse_poll_t(M_DELTAX, ev.motion.xrel));
+			mouse_polls.Append(mouse_poll_t(M_DELTAY, ev.motion.yrel));
+
+			return res;
+
 		case SDL_MOUSEWHEEL:
-		  {
-		    if( ev.wheel.y > 0 )
-		      {
-			SDL_QueEvent( SE_KEY, K_MWHEELUP, 1, 0, NULL);
-			SDL_AddMousePollEvent( M_DELTAZ, 1 );
-		      }
-		    else
-		      {
-			SDL_QueEvent( SE_KEY, K_MWHEELDOWN, 1, 0, NULL);
-			SDL_AddMousePollEvent( M_DELTAZ, -1 );
-		      }
-		  }
-		  break;
+			res.evType = SE_KEY;
+
+			if (ev.wheel.y > 0) {
+				res.evValue = K_MWHEELUP;
+				mouse_polls.Append(mouse_poll_t(M_DELTAZ, 1));
+			} else {
+				res.evValue = K_MWHEELDOWN;
+				mouse_polls.Append(mouse_poll_t(M_DELTAZ, -1));
+			}
+
+			res.evValue2 = 1;
+
+			return res;
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
-		  {
-		  int updown = ( ev.type == SDL_MOUSEBUTTONDOWN );
-		  int button;
-		  switch( ev.button.button )
-		    {
-		    default:
-		    case SDL_BUTTON_LEFT:
-		      button = K_MOUSE1;
-		      break;
-		    case SDL_BUTTON_MIDDLE:
-		      button = K_MOUSE3;
-		      break;
-		    case SDL_BUTTON_RIGHT:
-		      button = K_MOUSE2;
-		      break;
-		    }
-		  SDL_QueEvent( SE_KEY, button, updown, 0, NULL );
-		  }
-		  break;
+			res.evType = SE_KEY;
+
+			switch (ev.button.button) {
+			case SDL_BUTTON_LEFT:
+				res.evValue = K_MOUSE1;
+				mouse_polls.Append(mouse_poll_t(M_ACTION1, ev.button.state == SDL_PRESSED ? 1 : 0));
+				break;
+			case SDL_BUTTON_MIDDLE:
+				res.evValue = K_MOUSE3;
+				mouse_polls.Append(mouse_poll_t(M_ACTION3, ev.button.state == SDL_PRESSED ? 1 : 0));
+				break;
+			case SDL_BUTTON_RIGHT:
+				res.evValue = K_MOUSE2;
+				mouse_polls.Append(mouse_poll_t(M_ACTION2, ev.button.state == SDL_PRESSED ? 1 : 0));
+				break;
+
+			}
+
+			res.evValue2 = ev.button.state == SDL_PRESSED ? 1 : 0;
+
+			return res;
+
 		case SDL_QUIT:
 			PushConsoleEvent("quit");
 			SDL_Quit();
-			break;
+			return res_none;
+
 		case SDL_USEREVENT:
 			switch (ev.user.code) {
 			case SE_CONSOLE:
-
-			  SDL_QueEvent( SE_CONSOLE, 0, 0, (intptr_t)ev.user.data1, ev.user.data2);
-			  break;
+				res.evType = SE_CONSOLE;
+				res.evPtrLength = (intptr_t)ev.user.data1;
+				res.evPtr = ev.user.data2;
+				return res;
 			default:
 				common->Warning("unknown user event %u", ev.user.code);
-				break;
+				return res_none;
 			}
 		default:
 			common->Warning("unknown event %u", ev.type);
-			break;
+			return res_none;
 		}
 	}
+
+	return res_none;
 }
 
 /*
@@ -626,74 +652,79 @@ void Sys_EndMouseInputEvents() {
 	mouse_polls.SetNum(0, false);
 }
 
-void SDL_AddKeyboardPollEvent(int key, bool state) {
-	kbd_polls.Append(kbd_poll_t(key, state));
-}
 //
-void SDL_AddMousePollEvent(int action, int value) {
-	mouse_polls.Append(mouse_poll_t(action, value));
-}
-
-/*
-================
-SDL_QueEvent
- 
-ptr should either be null, or point to a block of data that can be freed later
-================
-*/
-#define	MAX_QUED_EVENTS		256
-#define	MASK_QUED_EVENTS	( MAX_QUED_EVENTS - 1 )
-
-static sysEvent_t eventQue[MAX_QUED_EVENTS];
-static int eventHead, eventTail;
-
-void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr ) {
-
-	sysEvent_t *ev;
-
-	ev = &eventQue[eventHead & MASK_QUED_EVENTS];
-	if (eventHead - eventTail >= MAX_QUED_EVENTS) {
-		common->Printf( "SDL_QueEvent: overflow\n" );
-		// we are discarding an event, but don't leak memory
-		// TTimo: verbose dropped event types?
-		if (ev->evPtr) {
-			Mem_Free(ev->evPtr);
-			ev->evPtr = NULL;
-		}
-		eventTail++;
-	}
-
-	eventHead++;
-
-	ev->evType = type;
-	ev->evValue = value;
-	ev->evValue2 = value2;
-	ev->evPtrLength = ptrLength;
-	ev->evPtr = ptr;
-	
-	//common->Printf( "Event %d: %d %d\n", ev->evType, ev->evValue, ev->evValue2 );
-}
-
-/*
-================
-Sys_GetEvent
-================
-*/
-sysEvent_t Sys_GetEvent( void )
-{
-	static sysEvent_t ev;
-
-	SDL_PollEvents();
-
-	// return if we have data
-	if (eventHead > eventTail) {
-		eventTail++;
-		return eventQue[(eventTail - 1) & MASK_QUED_EVENTS];
-	}
-	
-	// return the empty event with the current time
-	memset(&ev, 0, sizeof(ev));
-
-	return ev;
-}
-
+///*
+// * NEW
+// */
+//
+//void SDL_AddKeyboardPollEvent(int key, bool state) {
+//	kbd_polls.Append(kbd_poll_t(key, state));
+//}
+//
+//void SDL_AddMousePollEvent(int action, int value) {
+//	mouse_polls.Append(mouse_poll_t(action, value));
+//}
+//
+//
+///*
+//================
+//SDL_QueEvent
+// 
+//ptr should either be null, or point to a block of data that can be freed later
+//================
+//*/
+//#define	MAX_QUED_EVENTS		256
+//#define	MASK_QUED_EVENTS	( MAX_QUED_EVENTS - 1 )
+//
+//static sysEvent_t eventQue[MAX_QUED_EVENTS];
+//static int eventHead, eventTail;
+//
+//void SDL_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr ) {
+//	sysEvent_t *ev;
+//
+//	ev = &eventQue[eventHead & MASK_QUED_EVENTS];
+//	if (eventHead - eventTail >= MAX_QUED_EVENTS) {
+//		common->Printf( "SDL_QueEvent: overflow\n" );
+//		// we are discarding an event, but don't leak memory
+//		// TTimo: verbose dropped event types?
+//		if (ev->evPtr) {
+//			Mem_Free(ev->evPtr);
+//			ev->evPtr = NULL;
+//		}
+//		eventTail++;
+//	}
+//
+//	eventHead++;
+//
+//	ev->evType = type;
+//	ev->evValue = value;
+//	ev->evValue2 = value2;
+//	ev->evPtrLength = ptrLength;
+//	ev->evPtr = ptr;
+//	
+//	common->Printf( "Event %d: %d %d\n", ev->evType, ev->evValue, ev->evValue2 );
+//}
+//
+///*
+//================
+//Sys_GetEvent
+//================
+//*/
+//sysEvent_t Sys_GetEvent( void )
+//{
+//	static sysEvent_t ev;
+//
+//	SDL_PollEvents();
+//
+//	// return if we have data
+//	if (eventHead > eventTail) {
+//		eventTail++;
+//		return eventQue[(eventTail - 1) & MASK_QUED_EVENTS];
+//	}
+//
+//	// return the empty event with the current time
+//	memset(&ev, 0, sizeof(ev));
+//
+//	return ev;
+//}
+//
